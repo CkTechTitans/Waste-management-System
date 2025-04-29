@@ -99,7 +99,7 @@ def generate_5r_suggestions(objects):
     cleaned_objects = [clean_object_name(obj) for obj in objects]
     unique_objects = list(set(cleaned_objects))
     
-    api_key = 'AIzaSyAnTnUdsQklacaB5UKWc5jTORUKBWhE'
+    api_key = api_key = st.secrets["Gemini_api"]
     genai.configure(api_key=api_key)
     model = genai.GenerativeModel(model_name="gemini-1.5-flash")
     object_list = ', '.join(unique_objects)
