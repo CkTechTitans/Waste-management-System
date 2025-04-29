@@ -3,6 +3,7 @@ import streamlit as st
 from datetime import datetime
 import bcrypt
 import os
+import ssl
 
 def init_connection():
     try:
@@ -17,8 +18,18 @@ def init_connection():
             st.error("MongoDB connection string not found in secrets or environment variables")
             return None
             
-        # Use a reasonable timeout for connection attempts
-        client = MongoClient(mongo_uri, serverSelectionTimeoutMS=5000)
+        # Create SSL context with appropriate settings
+        ssl_context = ssl.create_default_context()
+        
+        # Use a reasonable timeout for connection attempts and specify SSL context
+        client = MongoClient(
+            mongo_uri, 
+            serverSelectionTimeoutMS=5000,
+            ssl=True,
+            ssl_cert_reqs=ssl.CERT_NONE,  # Try this if SSL verification is causing issues
+            connectTimeoutMS=30000,
+            socketTimeoutMS=30000
+        )
         
         # Force a connection to verify it works
         client.admin.command('ping')
@@ -33,6 +44,9 @@ def init_database():
     if client is not None:
         return client['waste_exchange']
     return None
+
+# The rest of your functions remain the same
+# get_user, register_user, create_seller_listing, etc.
     
 def get_user(email):
     db = init_database()
