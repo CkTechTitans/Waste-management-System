@@ -79,11 +79,11 @@ def call_object_detection_api(image_url):
     
     try:
         response = requests.post(api_url, data={}, headers=headers, params=querystring)
-        st.write("Response status code:", response.status_code)
+        
         
         if response.status_code == 200:
             response_data = response.json()
-            st.write("Response keys:", list(response_data.keys()))
+            
             return response_data
         else:
             st.error(f"API Error: {response.status_code}")
