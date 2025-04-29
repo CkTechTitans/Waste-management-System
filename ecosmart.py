@@ -785,48 +785,14 @@ def process_image(uploaded_file):
     with col1:
         image = Image.open(uploaded_file)
         st.image(image, caption="Uploaded Image", use_column_width=True)
-    
+
     with col2:
         with st.spinner("🔍 Analyzing image..."):
             try:
-                # Step 1: Upload to ImgBB
                 image_url = upload_image_to_imgbb(uploaded_file)
-                
-                if not image_url:
-                    st.error("Failed to upload image to ImgBB")
-                    return
-                
-                # Step 2: Call object detection API
                 response_data = call_object_detection_api(image_url)
                 
-                if not response_data:
-                    st.error("Failed to get response from object detection API")
-                    return
-                
-                # Debug the response structure
-                st.write("API Response keys:", list(response_data.keys()))
-                
-                # Step 3: Check if 'result' exists and is an iterable
-                if 'result' not in response_data:
-                    st.error("No 'result' key in API response")
-                    return
-                
-                if response_data['result'] is None:
-                    st.error("The 'result' from API is None")
-                    return
-                
-                if not isinstance(response_data['result'], list):
-                    st.error(f"API result is not a list. Got {type(response_data['result'])}")
-                    st.write("Response:", response_data)
-                    return
-                
-                # Step 4: Process the objects
                 extracted_objects = [item.get('name', 'Unknown Object') for item in response_data['result']]
-                
-                if not extracted_objects:
-                    st.warning("No objects detected in the image")
-                    return
-                
                 cleaned_objects = [clean_object_name(obj) for obj in extracted_objects]
                 object_counts = Counter(cleaned_objects)
                 
