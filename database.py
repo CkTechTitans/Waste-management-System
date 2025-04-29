@@ -19,7 +19,8 @@ def init_connection():
             encoded_password = urllib.parse.quote_plus(password)
             
             # Construct the connection string with encoded credentials
-            mongo_uri = f"mongodb+srv://{encoded_username}:{encoded_password}@{host}/waste_exchange?retryWrites=true&w=majority&appName=Cluster0&ssl=true"
+            # Note: Using query parameters for SSL settings instead of client options
+            mongo_uri = f"mongodb+srv://{encoded_username}:{encoded_password}@{host}/waste_exchange?retryWrites=true&w=majority&appName=Cluster0&tls=true&tlsAllowInvalidCertificates=true"
         else:
             # Fall back to environment variable
             mongo_uri = os.environ.get("MONGODB_URI")
@@ -28,12 +29,10 @@ def init_connection():
             st.error("MongoDB connection string not found in secrets or environment variables")
             return None
             
-        # Connect with SSL settings
+        # Connect with updated parameters - removed ssl_cert_reqs
         client = MongoClient(
             mongo_uri, 
             serverSelectionTimeoutMS=10000,
-            ssl=True,
-            ssl_cert_reqs=ssl.CERT_NONE,
             connectTimeoutMS=30000,
             socketTimeoutMS=30000
         )
@@ -53,6 +52,9 @@ def init_database():
     if client is not None:
         return client['waste_exchange']
     return None
+
+# The rest of your functions remain the same
+# get_user, register_user, create_seller_listing, etc.
 
 # The rest of your functions remain the same
 # get_user, register_user, create_seller_listing, etc.
