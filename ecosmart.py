@@ -11,16 +11,32 @@ def upload_image_to_imgbb(image):
     api_url = "https://api.imgbb.com/1/upload"
     api_key = st.secrets["imgbb_api"]
     
+    # Debug the API key (mask it partially for security)
+    masked_key = api_key[:4] + "..." + api_key[-4:] if len(api_key) > 8 else "Invalid key"
+    st.write(f"Using ImgBB API key: {masked_key}")
+    
     files = {"image": image.getvalue()}
     payload = {"key": api_key}
     
-    response = requests.post(api_url, files=files, data=payload)
-    
-    if response.status_code == 200:
-        return response.json()['data']['url']
-    else:
-        st.write(f"Error uploading image: {response.status_code}")
+    try:
+        response = requests.post(api_url, files=files, data=payload)
+        st.write(f"ImgBB Response status: {response.status_code}")
+        st.write(f"ImgBB Response text: {response.text[:100]}...")  # Show part of the response
+        
+        if response.status_code == 200:
+            data = response.json()
+            if 'data' in data and 'url' in data['data']:
+                return data['data']['url']
+            else:
+                st.error("Unexpected ImgBB response format")
+                return None
+        else:
+            st.error(f"Error uploading image: {response.status_code}")
+            return None
+    except Exception as e:
+        st.error(f"Exception during image upload: {e}")
         return None
+        
 
 import time
 import streamlit as st
@@ -769,14 +785,48 @@ def process_image(uploaded_file):
     with col1:
         image = Image.open(uploaded_file)
         st.image(image, caption="Uploaded Image", use_column_width=True)
-
+    
     with col2:
         with st.spinner("🔍 Analyzing image..."):
             try:
+                # Step 1: Upload to ImgBB
                 image_url = upload_image_to_imgbb(uploaded_file)
+                
+                if not image_url:
+                    st.error("Failed to upload image to ImgBB")
+                    return
+                
+                # Step 2: Call object detection API
                 response_data = call_object_detection_api(image_url)
                 
+                if not response_data:
+                    st.error("Failed to get response from object detection API")
+                    return
+                
+                # Debug the response structure
+                st.write("API Response keys:", list(response_data.keys()))
+                
+                # Step 3: Check if 'result' exists and is an iterable
+                if 'result' not in response_data:
+                    st.error("No 'result' key in API response")
+                    return
+                
+                if response_data['result'] is None:
+                    st.error("The 'result' from API is None")
+                    return
+                
+                if not isinstance(response_data['result'], list):
+                    st.error(f"API result is not a list. Got {type(response_data['result'])}")
+                    st.write("Response:", response_data)
+                    return
+                
+                # Step 4: Process the objects
                 extracted_objects = [item.get('name', 'Unknown Object') for item in response_data['result']]
+                
+                if not extracted_objects:
+                    st.warning("No objects detected in the image")
+                    return
+                
                 cleaned_objects = [clean_object_name(obj) for obj in extracted_objects]
                 object_counts = Counter(cleaned_objects)
                 
