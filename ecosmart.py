@@ -13,7 +13,7 @@ def upload_image_to_imgbb(image):
     
     # Debug the API key (mask it partially for security)
     masked_key = api_key[:4] + "..." + api_key[-4:] if len(api_key) > 8 else "Invalid key"
-    st.write(f"Using ImgBB API key: {masked_key}")
+    
     
     files = {"image": image.getvalue()}
     payload = {"key": api_key}
@@ -56,7 +56,7 @@ def call_object_detection_api(image_url):
         
         if response.status_code == 200:
             response_data = response.json()
-            st.write("Response keys:", list(response_data.keys()))
+            
             return response_data
         else:
             st.error(f"API Error: {response.status_code}")
