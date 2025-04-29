@@ -17,26 +17,35 @@ def init_connection():
         if not mongo_uri:
             st.error("MongoDB connection string not found in secrets or environment variables")
             return None
+        
+        # Important: Make sure the URI specifies the database
+        if "waste_exchange" not in mongo_uri and "?" in mongo_uri:
+            # Insert database name before query parameters
+            mongo_uri = mongo_uri.replace("/?", "/waste_exchange?")
             
         # Create SSL context with appropriate settings
         ssl_context = ssl.create_default_context()
         
-        # Use a reasonable timeout for connection attempts and specify SSL context
+        # Connect with SSL settings
         client = MongoClient(
             mongo_uri, 
-            serverSelectionTimeoutMS=5000,
+            serverSelectionTimeoutMS=10000,
             ssl=True,
-            ssl_cert_reqs=ssl.CERT_NONE,  # Try this if SSL verification is causing issues
+            ssl_cert_reqs=ssl.CERT_NONE,  # Bypass strict certificate validation
             connectTimeoutMS=30000,
-            socketTimeoutMS=30000
+            socketTimeoutMS=30000,
+            retryWrites=True,
+            w="majority"  # Ensure writes are acknowledged by majority of replicas
         )
         
         # Force a connection to verify it works
         client.admin.command('ping')
+        st.success("Connected to MongoDB successfully")
         
         return client
     except Exception as e:
         st.error(f"Could not connect to MongoDB: {e}")
+        st.info("Please check your connection string and network settings")
         return None
 
 def init_database():
@@ -44,10 +53,6 @@ def init_database():
     if client is not None:
         return client['waste_exchange']
     return None
-
-# The rest of your functions remain the same
-# get_user, register_user, create_seller_listing, etc.
-    
 def get_user(email):
     db = init_database()
     if db is not None:
