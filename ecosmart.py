@@ -61,8 +61,22 @@ def call_object_detection_api(image_url):
         "x-rapidapi-host": "ai-object-detection-image-analysis-object-analysis.p.rapidapi.com",
         "Content-Type": "application/x-www-form-urlencoded"
     }
-    response = requests.post(api_url, data={}, headers=headers, params=querystring)
-    return response.json()
+    
+    try:
+        response = requests.post(api_url, data={}, headers=headers, params=querystring)
+        st.write("Response status code:", response.status_code)
+        
+        if response.status_code == 200:
+            response_data = response.json()
+            st.write("Response keys:", list(response_data.keys()))
+            return response_data
+        else:
+            st.error(f"API Error: {response.status_code}")
+            st.write("Response text:", response.text)
+            return None
+    except Exception as e:
+        st.error(f"Exception during API call: {e}")
+        return None
 
 # Function to clean object names
 def clean_object_name(name):
