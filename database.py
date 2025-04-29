@@ -4,38 +4,38 @@ from datetime import datetime
 import bcrypt
 import os
 import ssl
+import urllib.parse
 
 def init_connection():
     try:
-        # Check for MongoDB URI in Streamlit secrets first
+        # Check for MongoDB URI in Streamlit secrets
         if "mongo" in st.secrets:
-            mongo_uri = st.secrets["mongo"]["uri"]
-        # Fall back to environment variable
+            username = st.secrets["mongo"]["username"]
+            password = st.secrets["mongo"]["password"]
+            host = st.secrets["mongo"]["host"]
+            
+            # URL encode username and password
+            encoded_username = urllib.parse.quote_plus(username)
+            encoded_password = urllib.parse.quote_plus(password)
+            
+            # Construct the connection string with encoded credentials
+            mongo_uri = f"mongodb+srv://{encoded_username}:{encoded_password}@{host}/waste_exchange?retryWrites=true&w=majority&appName=Cluster0&ssl=true"
         else:
+            # Fall back to environment variable
             mongo_uri = os.environ.get("MONGODB_URI")
             
         if not mongo_uri:
             st.error("MongoDB connection string not found in secrets or environment variables")
             return None
-        
-        # Important: Make sure the URI specifies the database
-        if "waste_exchange" not in mongo_uri and "?" in mongo_uri:
-            # Insert database name before query parameters
-            mongo_uri = mongo_uri.replace("/?", "/waste_exchange?")
             
-        # Create SSL context with appropriate settings
-        ssl_context = ssl.create_default_context()
-        
         # Connect with SSL settings
         client = MongoClient(
             mongo_uri, 
             serverSelectionTimeoutMS=10000,
             ssl=True,
-            ssl_cert_reqs=ssl.CERT_NONE,  # Bypass strict certificate validation
+            ssl_cert_reqs=ssl.CERT_NONE,
             connectTimeoutMS=30000,
-            socketTimeoutMS=30000,
-            retryWrites=True,
-            w="majority"  # Ensure writes are acknowledged by majority of replicas
+            socketTimeoutMS=30000
         )
         
         # Force a connection to verify it works
@@ -53,6 +53,9 @@ def init_database():
     if client is not None:
         return client['waste_exchange']
     return None
+
+# The rest of your functions remain the same
+# get_user, register_user, create_seller_listing, etc.
 def get_user(email):
     db = init_database()
     if db is not None:
