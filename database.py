@@ -1,5 +1,9 @@
-from pymongo import MongoClient, IGNORED_SENTINEL
+from pymongo import MongoClient
 import streamlit as st
+from datetime import datetime
+import bcrypt
+import os
+import ssl
 import urllib.parse
 
 def init_connection():
@@ -14,8 +18,9 @@ def init_connection():
             encoded_username = urllib.parse.quote_plus(username)
             encoded_password = urllib.parse.quote_plus(password)
             
-            # Construct connection string (most simple form)
-            mongo_uri = f"mongodb+srv://{encoded_username}:{encoded_password}@{host}/waste_exchange"
+            # Construct the connection string with encoded credentials
+            # Note: Using query parameters for SSL settings instead of client options
+            mongo_uri = f"mongodb+srv://{encoded_username}:{encoded_password}@{host}/waste_exchange?retryWrites=true&w=majority&appName=Cluster0&tls=true&tlsAllowInvalidCertificates=true"
         else:
             # Fall back to environment variable
             mongo_uri = os.environ.get("MONGODB_URI")
@@ -24,15 +29,12 @@ def init_connection():
             st.error("MongoDB connection string not found in secrets or environment variables")
             return None
             
-        # Use PyMongo options following latest documentation
+        # Connect with updated parameters - removed ssl_cert_reqs
         client = MongoClient(
-            mongo_uri,
+            mongo_uri, 
             serverSelectionTimeoutMS=10000,
             connectTimeoutMS=30000,
-            socketTimeoutMS=30000,
-            # TLS is handled automatically for SRV connection strings
-            # Setting TLS parameters explicitly only if needed
-            tlsAllowInvalidCertificates=True
+            socketTimeoutMS=30000
         )
         
         # Force a connection to verify it works
@@ -50,9 +52,9 @@ def init_database():
     if client is not None:
         return client['waste_exchange']
     return None
+
 # The rest of your functions remain the same
 # get_user, register_user, create_seller_listing, etc.
-
 # The rest of your functions remain the same
 # get_user, register_user, create_seller_listing, etc.
 def get_user(email):
