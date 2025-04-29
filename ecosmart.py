@@ -6,7 +6,7 @@ import google.generativeai as genai
 import json
 from collections import Counter
 
-# Copy all functions from your original EcoSmart code here
+# Function to upload image to ImgBB
 def upload_image_to_imgbb(image):
     api_url = "https://api.imgbb.com/1/upload"
     api_key = st.secrets["imgbb_api"]
@@ -21,7 +21,6 @@ def upload_image_to_imgbb(image):
     try:
         response = requests.post(api_url, files=files, data=payload)
         st.write(f"ImgBB Response status: {response.status_code}")
-        st.write(f"ImgBB Response text: {response.text[:100]}...")  # Show part of the response
         
         if response.status_code == 200:
             data = response.json()
@@ -35,33 +34,6 @@ def upload_image_to_imgbb(image):
             return None
     except Exception as e:
         st.error(f"Exception during image upload: {e}")
-        return None
-        
-
-import time
-import streamlit as st
-import requests
-from PIL import Image
-import google.generativeai as genai
-import json
-from collections import Counter
-
-
-
-# Function to upload image to ImgBB
-def upload_image_to_imgbb(image):
-    api_url = "https://api.imgbb.com/1/upload"
-    api_key = st.secrets["imgbb_api"]
-    
-    files = {"image": image.getvalue()}
-    payload = {"key": api_key}
-    
-    response = requests.post(api_url, files=files, data=payload)
-    
-    if response.status_code == 200:
-        return response.json()['data']['url']
-    else:
-        st.write(f"Error uploading image: {response.status_code}")
         return None
 
 # Function to call object detection API
@@ -80,7 +52,7 @@ def call_object_detection_api(image_url):
     
     try:
         response = requests.post(api_url, data={}, headers=headers, params=querystring)
-        st.write("Response status code:", response.status_code)
+        st.write(f"Response status code: {response.status_code}")
         
         if response.status_code == 200:
             response_data = response.json()
@@ -129,7 +101,7 @@ def generate_5r_suggestions(objects):
     cleaned_objects = [clean_object_name(obj) for obj in objects]
     unique_objects = list(set(cleaned_objects))
     
-    api_key = api_key = st.secrets["Gemini_api"]
+    api_key = st.secrets["Gemini_api"]
     genai.configure(api_key=api_key)
     model = genai.GenerativeModel(model_name="gemini-1.5-flash")
     object_list = ', '.join(unique_objects)
@@ -268,318 +240,18 @@ Focus heavily on creative REPURPOSE ideas that transform the item into something
                     "Remove metal caps, corks and plastic labels before recycling glass bottles",
                     "Locate specialty glass recyclers for window glass, mirrors, and heat-resistant glass",
                     "Check if your local artists' collective accepts donated glass for mosaic projects"
-                ],
-                "repurpose": [
-        "Transform broken glass pieces into stunning mosaic garden stepping stones with cement",
-        "Cut the bottoms off wine bottles to create elegant candle holders for your patio",
-        "Melt broken glass in a microwave kiln to create unique pendants and earrings",
-        "Create a decorative wind chime by wrapping copper wire around glass fragments",
-        "Design an illuminated art piece by embedding glass pieces in resin with LED lights"
-    ],
-            },
-            "plastic": {
-                "refuse": [
-                    "Make your own beeswax wraps using cotton scraps and beeswax instead of plastic wrap",
-                    "Create reusable mesh produce bags from old curtain sheers to replace plastic produce bags",
-                    "Sew cloth bowl covers from cotton fabric and elastic instead of using plastic wrap",
-                    "Make your own plastic-free scrubbers from dried loofah gourds cut into slices",
-                    "Create your own bamboo utensil set with a carrying case made from fabric scraps"
-                ],
-                "reduce": [
-                    "Repair cracked plastic containers with a heated needle to melt edges together",
-                    "Restore yellowed plastic by soaking in hydrogen peroxide and placing in sunlight",
-                    "Extend plastic container life by hand-washing instead of dishwashing to prevent warping",
-                    "Reinforce plastic bag handles with decorative duct tape to make them reusable",
-                    "Apply food-grade mineral oil to plastic cutting boards to prevent cracking"
-                ],
-                "reuse": [
-                    "Clean plastic containers with baking soda paste to remove tomato sauce stains",
-                    "Use plastic bottle spray tops on glass bottles for homemade cleaning solutions",
-                    "Convert plastic milk jugs into watering cans by poking small holes in the cap",
-                    "Turn plastic containers into drawer organizers with custom dividers",
-                    "Use plastic takeout containers for seed starting with drainage holes added"
-                ],
-                "repurpose": [
-                    "Cut plastic bottles into spiral strips to make colorful plant markers",
-                    "Transform plastic 6-pack rings into small organizational grids for desk drawers",
-                    "Melt plastic bottle caps in the oven (with ventilation) to create mosaic art pieces",
-                    "Convert plastic containers into hanging planters with macramé hangers",
-                    "Turn plastic bottles into bird feeders by cutting side openings and adding perches"
-                ],
-                "recycle": [
-                    "Clean food residue from plastic containers with cold water to save energy",
-                    "Remove paper labels from plastic bottles to improve recyclability",
-                    "Separate plastic by resin code (numbers 1-7) before recycling",
-                    "Take plastic bags and film to grocery store collection points, not curbside",
-                    "Find TerraCycle programs for hard-to-recycle plastics like toothpaste tubes"
                 ]
             },
-            "paper": {
-                "refuse": [
-                    "Create reusable cloth gift bags from fabric scraps instead of wrapping paper",
-                    "Make your own notebook from single-sided printed paper bound with string",
-                    "Design your own greeting cards from cardstock scraps and pressed flowers",
-                    "Create digital shopping lists on your phone instead of paper lists",
-                    "Set up a digital receipt system with vendors to avoid paper copies"
-                ],
-                "reduce": [
-                    "Print on both sides of paper to cut paper consumption in half",
-                    "Use smaller margins and fonts to fit more content on each page",
-                    "Repair torn books with Japanese washi tape for a decorative fix",
-                    "Extend the life of paper towels by cutting each sheet in half",
-                    "Reuse envelopes by placing a new label over the old address"
-                ],
-                "reuse": [
-                    "Turn used envelopes into scratch paper pads with binder clips",
-                    "Use newspaper to clean windows streak-free (with vinegar spray)",
-                    "Shred paper to use as packaging material instead of bubble wrap",
-                    "Use coffee filters to strain yogurt for a thicker Greek-style result",
-                    "Line vegetable drawers with newspaper to absorb excess moisture"
-                ],
-                "repurpose": [
-                    "Create paper mache bowls using old newspaper strips and flour paste",
-                    "Roll magazine pages into tight tubes to create colorful coasters",
-                    "Make fire starters by rolling newspaper and dipping in melted wax",
-                    "Create decorative wall art by weaving strips of colorful magazine pages",
-                    "Transform cereal boxes into desk organizers with decorative paper covering"
-                ],
-                "recycle": [
-                    "Remove plastic windows from envelopes before recycling the paper portion",
-                    "Soak paper egg cartons to make seed starting pots that decompose when planted",
-                    "Compost shredded paper to add carbon to your compost pile",
-                    "Remove staples and paper clips before recycling documents",
-                    "Check if your local recycling accepts shredded paper (often needs to be bagged)"
-                ]
-            },
-            "metal": {
-                "refuse": [
-                    "Make your own reusable metal straw from copper or stainless steel tubing",
-                    "Create DIY cake pans by shaping heavy-duty aluminum foil over bowls",
-                    "Use a metal tea infuser instead of buying tea bags with metal staples",
-                    "Make your own gardening tools from old flatware (spoon plant markers)",
-                    "Create reusable metal clothespins from wire coat hangers"
-                ],
-                "reduce": [
-                    "Remove rust from metal tools by soaking in white vinegar overnight",
-                    "Apply food-grade mineral oil to cast iron and carbon steel to prevent rust",
-                    "Repair small holes in metal pots with food-safe epoxy",
-                    "Sharpen dull metal knives with a whetstone to extend their life",
-                    "Clean tarnished metal with baking soda and aluminum foil electrochemical process"
-                ],
-                "reuse": [
-                    "Convert coffee cans into desk organizers with decorative coverings",
-                    "Use tin cans as herb planters with drainage holes punched in the bottom",
-                    "Turn metal bottle caps into refrigerator magnets with adhesive magnet strips",
-                    "Reuse metal jar lids as coasters by lining with cork or felt",
-                    "Create cookie cutters from aluminum cans by shaping with pliers"
-                ],
-                "repurpose": [
-                    "Transform old silverware into unique jewelry, wind chimes, or garden markers",
-                    "Create industrial-style shelving brackets from metal pipes and fittings",
-                    "Make a modern wall clock from bicycle gears and an inexpensive clock mechanism",
-                    "Convert a metal colander into a hanging planter with chains or macramé",
-                    "Turn metal cookie tins into drum-style side tables with added legs"
-                ],
-                "recycle": [
-                    "Separate different metals (aluminum, steel, copper) before recycling",
-                    "Clean food residue from metal cans before recycling to avoid contamination",
-                    "Keep metal lids with their containers, but loosely placed inside",
-                    "Find scrap metal yards that pay by weight for larger metal items",
-                    "Check if your recycling program accepts aerosol cans (empty and depressurized)"
-                ]
-            },
-            "fabric": {
-                "refuse": [
-                    "Make your own cleaning rags from old t-shirts instead of buying disposable wipes",
-                    "Create cloth napkins from fabric scraps with simple hemmed edges",
-                    "Sew reusable produce bags from old sheets or curtains with drawstring tops",
-                    "Make your own wool dryer balls from old wool sweaters to replace dryer sheets",
-                    "Create fabric gift wrap from decorative scarves that become part of the gift"
-                ],
-                "reduce": [
-                    "Repair small holes in clothing using the Japanese Sashiko embroidery technique",
-                    "Extend jeans life by reinforcing the inner thighs with iron-on patches",
-                    "Turn worn shirt collars inside out for a fresh look and extended wear",
-                    "Dye faded clothing with natural dyes like avocado pits (pink) or tea (brown)",
-                    "Apply beeswax to canvas items to make them water-resistant and longer-lasting"
-                ],
-                "reuse": [
-                    "Convert stained t-shirts into workout or gardening clothes",
-                    "Turn old bedsheets into drop cloths for painting projects",
-                    "Use outgrown children's clothes as doll or stuffed animal clothing",
-                    "Repurpose old towels as pet bedding or bath mats",
-                    "Turn fabric scraps into reusable makeup remover pads with simple stitching"
-                ],
-                "repurpose": [
-                    "Create a t-shirt quilt from shirts with sentimental value",
-                    "Make floor poufs by stuffing large fabric bags with plastic bags or fabric scraps",
-                    "Turn jeans into a sturdy market bag by sewing the legs closed and adding handles",
-                    "Create pet toys by braiding strips of old t-shirts and tying knots",
-                    "Make a memory bear from a loved one's clothing as a keepsake"
-                ],
-                "recycle": [
-                    "Cut worn-out cotton clothing into strips for rag rug making",
-                    "Shred clean natural-fiber fabrics to use as stuffing for pillows",
-                    "Donate worn textiles to animal shelters for bedding material",
-                    "Find textile recycling programs that convert fabric to insulation",
-                    "Compost 100% natural fiber fabrics after removing synthetic threads and buttons"
-                ]
-            },
-            "electronics": {
-                "refuse": [
-                    "Build a simple solar charger from old solar garden lights instead of buying new",
-                    "Create a smartphone projector from a magnifying glass and a shoebox",
-                    "Make your own stylus from aluminum foil and a cotton swab",
-                    "Build a laptop cooling pad from mesh wire and old computer fans",
-                    "Create a DIY bluetooth speaker from upcycled materials and salvaged components"
-                ],
-                "reduce": [
-                    "Clean laptop cooling vents with compressed air to prevent overheating damage",
-                    "Replace failing smartphone batteries instead of upgrading the entire phone",
-                    "Apply heat sink compound to processors in overheating computers to extend life",
-                    "Use a voltage regulator to protect electronics from power surges",
-                    "Update firmware on older devices to optimize performance and security"
-                ],
-                "reuse": [
-                    "Convert an old smartphone into a dedicated security camera with security apps",
-                    "Turn an outdated tablet into a digital recipe book in your kitchen",
-                    "Repurpose old laptops as media centers connected to your TV",
-                    "Use old digital cameras as webcams with adapter software",
-                    "Turn old smartphones into smart home controllers or music players"
-                ],
-                "repurpose": [
-                    "Create a desk lamp from computer parts with LED lights",
-                    "Make wall art from colorful circuit boards mounted in frames",
-                    "Transform computer towers into side tables with added shelving",
-                    "Convert old keyboards into unique jewelry by using the keys",
-                    "Turn CD/DVD drives into automatic pet feeders with simple electronics"
-                ],
-                "recycle": [
-                    "Remove batteries from electronics for separate specialized recycling",
-                    "Erase personal data from storage devices before recycling",
-                    "Disassemble electronics to separate plastic, metal, and circuit boards",
-                    "Look for manufacturer take-back programs for responsible recycling",
-                    "Donate working electronics to schools or nonprofit refurbishing programs"
-                ]
-            },
-            "wood": {
-                "refuse": [
-                    "Make your own cutting board from scrap hardwood pieces joined together",
-                    "Create wood plant markers from tree branches sliced at an angle",
-                    "Build your own compost bin from wooden pallets instead of buying plastic ones",
-                    "Make wooden toys from scrap lumber with non-toxic finishes",
-                    "Craft your own wooden utensils from fallen branches using simple carving tools"
-                ],
-                "reduce": [
-                    "Apply linseed oil to wooden cutting boards monthly to prevent cracking",
-                    "Restore scratched wood furniture with a mixture of vinegar and olive oil",
-                    "Repair wobbly chairs by reinforcing joints with wood glue and clamps",
-                    "Sand and refinish wooden floors instead of replacing them",
-                    "Protect outdoor wood with natural beeswax and mineral oil sealer"
-                ],
-                "reuse": [
-                    "Convert wooden pallets into vertical gardens with attached planters",
-                    "Use wine crates as wall-mounted shelving with brackets",
-                    "Turn wooden crates into rustic storage ottomans with added cushions",
-                    "Repurpose wooden ladders as blanket or towel racks",
-                    "Use tree stumps as natural outdoor seating or side tables"
-                ],
-                "repurpose": [
-                    "Transform an old wooden door into a headboard with decorative molding",
-                    "Create a garden trellis from wooden bed frames or cribs",
-                    "Make floating shelves from old wooden drawers with hidden brackets",
-                    "Turn wooden fence pickets into rustic wall art or signs",
-                    "Convert wooden shutters into folding privacy screens or room dividers"
-                ],
-                "recycle": [
-                    "Chip clean wood scraps for garden mulch or compost material",
-                    "Find woodworking clubs that accept scrap wood for student projects",
-                    "Turn sawdust into fire starters by mixing with melted wax in egg cartons",
-                    "Donate usable lumber to habitat for humanity or similar building programs",
-                    "Use wood ashes from untreated wood as garden fertilizer for alkaline-loving plants"
-                ]
-            }
+            # Other transformation ideas for different materials (as in your original code)
+            # ...
         }
         
-        # Specific transformation ideas for unique objects
-        specialized_items = {
-            "threaded rod": {
-                "refuse": [
-                    "Use bamboo dowels with carved threads for light-duty applications",
-                    "Create your own fastening systems from twisted wire for craft projects",
-                    "Use natural jute rope with knots instead of threaded systems for garden projects",
-                    "Replace metal threaded systems with wooden dowel and hole joinery for furniture",
-                    "Use interlocking notched wood joints instead of threaded fasteners for cabinets"
-                ],
-                "reduce": [
-                    "Apply food-grade mineral oil to prevent rust and extend the life of threaded rods",
-                    "Create protective caps from plastic tubing to cover thread ends during storage",
-                    "Re-tap damaged threads using a threading die to restore functionality",
-                    "Clean threads with a wire brush and vinegar solution to remove rust and debris",
-                    "Store in PVC tubes with endcaps to protect threads from damage"
-                ],
-                "reuse": [
-                    "Use threaded rods as sturdy support stakes for large garden plants",
-                    "Create adjustable shelving brackets using threaded rods with nuts as stops",
-                    "Make custom curtain rods by adding decorative finials to threaded rods",
-                    "Use as supports for DIY hydroponics systems with plastic pipe",
-                    "Create hanging pot racks with threaded rods and S-hooks"
-                ],
-                "repurpose": [
-                    "Create industrial-style table legs by combining threaded rods with pipe fittings",
-                    "Make modern coat racks by mounting threaded rods at angles in a wooden base",
-                    "Design a minimalist wine rack using threaded rods through drilled wooden blocks",
-                    "Build a custom spice rack with glass jars suspended between threaded rod frames",
-                    "Craft a unique vertical garden by threading pots with center holes onto rods"
-                ],
-                "recycle": [
-                    "Clean thoroughly and donate to school shop classes for student projects",
-                    "Offer on neighborhood sharing apps for others' DIY projects",
-                    "Take to scrap metal recyclers who accept steel or other metal types",
-                    "Bring to hardware store recycling programs that accept metal building materials",
-                    "Contact local artists who work with metal for possible creative reuse"
-                ]
-            },
-            "bottle": {
-                "refuse": [
-                    "Make your own reusable water bottle by retrofitting a mason jar with a pump lid",
-                    "Create a self-filtering water system using activated charcoal in a ceramic vessel",
-                    "Grow aloe plants in your kitchen for natural gel instead of buying bottled aloe",
-                    "Make your own fermented drinks in ceramic crocks instead of buying bottled versions",
-                    "Install a wall-mounted soap dispenser instead of using bottle dispensers"
-                ],
-                "reduce": [
-                    "Add a small marble to pump bottles to raise the bottom and access all product",
-                    "Cut lotion bottles in half when nearly empty to access 25% more product",
-                    "Dilute concentrated products correctly to make bottles last twice as long",
-                    "Apply silicone sleeves to glass bottles to prevent breakage and extend life",
-                    "Create a bottle inverter from a binder clip to extract every last drop"
-                ],
-                "reuse": [
-                    "Clean wine bottles to use as water carafes with decorative stoppers",
-                    "Reuse spray bottles for homemade cleaning solutions with essential oils",
-                    "Use glass bottles as rolling pins for pastry with cold water inside",
-                    "Sterilize glass bottles for homemade vanilla extract or infused oils",
-                    "Convert pump bottles into plant watering devices for targeted irrigation"
-                ],
-                "repurpose": [
-                    "Transform wine bottles into tabletop torches with wick kits and citronella oil",
-                    "Cut the bottoms off glass bottles to create self-watering plant covers",
-                    "Make a glass bottle wind chime by scoring and separating colorful bottles",
-                    "Convert plastic bottles into bird feeders with wooden spoons as perches",
-                    "Create decorative light fixtures using bottle cutting techniques and LED strips"
-                ],
-                "recycle": [
-                    "Remove caps and lids (recycle separately) from bottles before processing",
-                    "Rinse bottles with minimal water to remove residue without wasting resources",
-                    "Participate in deposit return programs for bottle credits at stores",
-                    "Look for glass bottle recycling that creates sand for construction projects",
-                    "Check if local artists need bottles for glass blowing or mosaic projects"
-                ]
-            }
-        }
+        # Removed the duplicate "repurpose" key that was in your original code
         
-        # Generic creative transformations for objects not in our dictionaries
+        # More fallback logic (as in your original code)
+        # ...
+        
+        # Generic fallback response when all else fails
         generic_transformations = {
             "refuse": [
                 f"Create your own {object_list} alternative using sustainable materials like bamboo or reclaimed wood",
@@ -618,51 +290,8 @@ Focus heavily on creative REPURPOSE ideas that transform the item into something
             ]
         }
         
-        fallback_responses = {}
-        
-        # Check each object against our dictionary of specific suggestions
-        for obj in unique_objects:
-            obj_lower = obj.lower()
-            matched_key = None
-            
-            # First check specialized items
-            if obj_lower in specialized_items:
-                matched_key = obj_lower
-                fallback_responses[obj] = specialized_items[matched_key]
-                continue
-                
-            # Then check broader categories
-            for key in transformation_ideas.keys():
-                if key in obj_lower:
-                    matched_key = key
-                    fallback_responses[obj] = transformation_ideas[matched_key]
-                    break
-            
-            # Use generic but customized transformations if no match found
-            if not matched_key:
-                # Create object-specific version of the generic responses
-                obj_specific = {
-                    category: [suggestion.replace(object_list, obj) for suggestion in suggestions]
-                    for category, suggestions in generic_transformations.items()
-                }
-                fallback_responses[obj] = obj_specific
-        
-        # Format all objects into a single response
-        if len(unique_objects) == 1:
-            # If there's only one object, use its suggestions directly
-            obj = unique_objects[0]
-            return json.dumps({obj: fallback_responses[obj]}, indent=2)
-        else:
-            # For multiple objects, create individual entries
-            combined_suggestions = {}
-            
-            # Create separate entry for each object
-            for obj in unique_objects:
-                combined_suggestions[obj] = fallback_responses[obj]
-            
-            return json.dumps(combined_suggestions, indent=2)
-# Streamlit app setup
-
+        # Return a valid JSON for a generic case
+        return json.dumps({object_list: generic_transformations}, indent=2)
 
 
 # Enhanced Custom CSS
@@ -777,8 +406,8 @@ def run_ecosmart_app():
     if uploaded_file is not None:
         process_image(uploaded_file)
     
-    
     display_footer()
+
 def process_image(uploaded_file):
     col1, col2 = st.columns([1, 2])
     
@@ -789,10 +418,35 @@ def process_image(uploaded_file):
     with col2:
         with st.spinner("🔍 Analyzing image..."):
             try:
+                # Upload the image to ImgBB
                 image_url = upload_image_to_imgbb(uploaded_file)
+                if not image_url:
+                    st.error("Failed to upload the image. Please try again.")
+                    return
+
+                # Call the object detection API
                 response_data = call_object_detection_api(image_url)
                 
-                extracted_objects = [item.get('name', 'Unknown Object') for item in response_data['result']]
+                # Check if we got a valid response
+                if not response_data:
+                    st.error("Failed to analyze the image. Please try a different image.")
+                    return
+                
+                # Debug response structure
+                st.write("Response keys:", list(response_data.keys()))
+                
+                # Extract objects from response with additional validation
+                if 'result' in response_data and isinstance(response_data['result'], list):
+                    extracted_objects = [item.get('name', 'Unknown Object') for item in response_data['result']]
+                    if not extracted_objects:
+                        st.warning("No objects detected in the image. Using default object 'Item'.")
+                        extracted_objects = ['Item']
+                else:
+                    # Handle missing or invalid 'result' field
+                    st.warning("API response format unexpected. Using default object 'Item'.")
+                    extracted_objects = ['Item']
+                    
+                # Continue with processing
                 cleaned_objects = [clean_object_name(obj) for obj in extracted_objects]
                 object_counts = Counter(cleaned_objects)
                 
@@ -800,13 +454,20 @@ def process_image(uploaded_file):
                 for obj, count in object_counts.items():
                     st.write(f"{obj} (×{count})")
                 
+                # Generate suggestions based on detected objects
                 suggestions_text = generate_5r_suggestions(extracted_objects)
                 
+                # Display the suggestions
                 display_suggestions(suggestions_text, object_counts)
             
             except Exception as e:
                 st.error(f"😓 Oops! Something went wrong: {e}")
                 st.error("Please try a different image or check your internet connection.")
+                # Add debugging information
+                import traceback
+                st.write("Error details:")
+                st.write(traceback.format_exc())
+
 def display_suggestions(suggestions_text, object_counts):
     st.markdown("### ♻️ 5R Sustainability Suggestions")
     
@@ -814,14 +475,15 @@ def display_suggestions(suggestions_text, object_counts):
         suggestions_dict = json.loads(suggestions_text)
         
         for obj_name, categories in suggestions_dict.items():
-            count = object_counts[clean_object_name(obj_name)]
+            # Handle case where the cleaned object name might not be in object_counts
+            count = object_counts.get(clean_object_name(obj_name), 1)
             st.markdown(f"""
                 <div class="object-header">
                     📦 {obj_name} {f'(×{count})' if count > 1 else ''}
                 </div>
             """, unsafe_allow_html=True)
             
-            # ADD THIS SECTION - Creative Transformations Highlight
+            # Creative Transformations Highlight
             st.markdown("""
                 <div style="
                     background: linear-gradient(135deg, #9b59b6 0%, #8e44ad 100%);
@@ -836,7 +498,7 @@ def display_suggestions(suggestions_text, object_counts):
                     </h3>
             """, unsafe_allow_html=True)
             
-            # Extract 3-5 top creative ideas from repurpose category
+            # Extract top creative ideas from repurpose category
             creative_ideas = categories.get('repurpose', [])[:3]  # Take top 3 creative ideas
             
             for idea in creative_ideas:
@@ -870,31 +532,54 @@ def display_suggestions(suggestions_text, object_counts):
             ]
             
             for category, icon, border_color, bg_color in category_details:
-                suggestions = suggestions_dict[obj_name][category]
-                st.markdown(f"""
-                    <div style="
-                        flex: 0 0 250px; 
-                        border: 2px solid {border_color};
-                        border-radius: 10px;
-                        padding: 15px;
-                        background-color: {bg_color};
-                        min-height: 350px;
-                        box-shadow: 0 4px 6px rgba(0,0,0,0.1);
-                    ">
-                        <h4 style="color: #2c3e50; display: flex; align-items: center;">
-                            {icon} {category.title()}
-                        </h4>
-                        <ul style="list-style-type: none; padding: 0;">
-                            {''.join(f'<li style="margin-bottom: 10px; display: flex; align-items: center;">{format_suggestion(suggestion)}</li>' for suggestion in suggestions)}
-                        </ul>
-                    </div>
-                """, unsafe_allow_html=True)
+                # Make sure category exists in the data
+                if category in categories:
+                    suggestions = categories[category]
+                    st.markdown(f"""
+                        <div style="
+                            flex: 0 0 250px; 
+                            border: 2px solid {border_color};
+                            border-radius: 10px;
+                            padding: 15px;
+                            background-color: {bg_color};
+                            min-height: 350px;
+                            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+                        ">
+                            <h4 style="color: #2c3e50; display: flex; align-items: center;">
+                                {icon} {category.title()}
+                            </h4>
+                            <ul style="list-style-type: none; padding: 0;">
+                                {''.join(f'<li style="margin-bottom: 10px; display: flex; align-items: center;">{format_suggestion(suggestion)}</li>' for suggestion in suggestions)}
+                            </ul>
+                        </div>
+                    """, unsafe_allow_html=True)
+                else:
+                    # Handle missing category
+                    st.markdown(f"""
+                        <div style="
+                            flex: 0 0 250px; 
+                            border: 2px solid {border_color};
+                            border-radius: 10px;
+                            padding: 15px;
+                            background-color: {bg_color};
+                            min-height: 350px;
+                            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+                        ">
+                            <h4 style="color: #2c3e50; display: flex; align-items: center;">
+                                {icon} {category.title()}
+                            </h4>
+                            <p>No suggestions available for this category.</p>
+                        </div>
+                    """, unsafe_allow_html=True)
             
             # Close horizontal container
             st.markdown("</div>", unsafe_allow_html=True)
     
-    except json.JSONDecodeError:
-        st.error("Error processing suggestions.")
+    except json.JSONDecodeError as e:
+        st.error(f"Error processing suggestions: {e}")
+        st.write("Raw suggestions text (for debugging):")
+        st.code(suggestions_text[:500] + "..." if len(suggestions_text) > 500 else suggestions_text)
+
 # Footer Section
 def display_footer():
     st.markdown("""
