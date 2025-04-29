@@ -1,0 +1,7 @@
+streamlit
+requests
+pillow
+google-generativeai
+pandas
+pymongo
+bson
