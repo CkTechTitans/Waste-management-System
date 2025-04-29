@@ -13,15 +13,14 @@ def upload_image_to_imgbb(image):
     
     # Debug the API key (mask it partially for security)
     masked_key = api_key[:4] + "..." + api_key[-4:] if len(api_key) > 8 else "Invalid key"
-    st.write(f"Using ImgBB API key: {masked_key}")
+   
     
     files = {"image": image.getvalue()}
     payload = {"key": api_key}
     
     try:
         response = requests.post(api_url, files=files, data=payload)
-        st.write(f"ImgBB Response status: {response.status_code}")
-        st.write(f"ImgBB Response text: {response.text[:100]}...")  # Show part of the response
+        
         
         if response.status_code == 200:
             data = response.json()
