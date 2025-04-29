@@ -2,10 +2,27 @@ from pymongo import MongoClient
 import streamlit as st
 from datetime import datetime
 import bcrypt
+import os
 
 def init_connection():
     try:
-        client = MongoClient('mongodb://localhost:27017/')
+        # Check for MongoDB URI in Streamlit secrets first
+        if "mongo" in st.secrets:
+            mongo_uri = st.secrets["mongo"]["uri"]
+        # Fall back to environment variable
+        else:
+            mongo_uri = os.environ.get("MONGODB_URI")
+            
+        if not mongo_uri:
+            st.error("MongoDB connection string not found in secrets or environment variables")
+            return None
+            
+        # Use a reasonable timeout for connection attempts
+        client = MongoClient(mongo_uri, serverSelectionTimeoutMS=5000)
+        
+        # Force a connection to verify it works
+        client.admin.command('ping')
+        
         return client
     except Exception as e:
         st.error(f"Could not connect to MongoDB: {e}")
@@ -16,7 +33,7 @@ def init_database():
     if client is not None:
         return client['waste_exchange']
     return None
-
+    
 def get_user(email):
     db = init_database()
     if db is not None:
