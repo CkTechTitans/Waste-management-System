@@ -18,8 +18,8 @@ def init_connection():
             encoded_username = urllib.parse.quote_plus(username)
             encoded_password = urllib.parse.quote_plus(password)
             
-            # Construct the connection string with encoded credentials
-            mongo_uri = f"mongodb+srv://{encoded_username}:{encoded_password}@{host}/waste_exchange?retryWrites=true&w=majority"
+            # Construct URI - minimal parameters
+            mongo_uri = f"mongodb+srv://{encoded_username}:{encoded_password}@{host}/?retryWrites=true&w=majority"
         else:
             # Fall back to environment variable
             mongo_uri = os.environ.get("MONGODB_URI")
@@ -27,27 +27,22 @@ def init_connection():
         if not mongo_uri:
             st.error("MongoDB connection string not found in secrets or environment variables")
             return None
-        
-        # Connect with specific TLS/SSL settings
+            
+        # Use certifi's SSL certificates
         client = MongoClient(
             mongo_uri,
-            tls=True,
-            tlsAllowInvalidCertificates=True,
-            serverSelectionTimeoutMS=10000,
-            connectTimeoutMS=30000,
-            socketTimeoutMS=30000
+            tlsCAFile=certifi.where()
         )
         
-        # Force a connection to verify it works
+        # Test connection
         client.admin.command('ping')
         st.success("Connected to MongoDB successfully")
         
         return client
     except Exception as e:
         st.error(f"Could not connect to MongoDB: {e}")
-        st.info("Please check your connection string and network settings")
+        st.info(f"Error details: {str(e)}")
         return None
-
 def init_database():
     client = init_connection()
     if client is not None:
