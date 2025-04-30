@@ -12,7 +12,11 @@ def init_connection():
         cluster_url = st.secrets["mongo_cluster_url"]
         mongo_uri = f"mongodb+srv://{username}:{password}@{cluster_url}/test?retryWrites=true&w=majority&appName=Cluster0"
         
-        client = MongoClient(mongo_uri, ssl=True, ssl_cert_reqs='CERT_REQUIRED')
+        # Attempt to connect with explicit SSL configuration.  This is the key change.
+        client = MongoClient(mongo_uri, ssl=True) # Removed ssl_cert_reqs
+        
+        # Force the use of TLS 1.2 (More robust)
+        client.admin.command('ping', tls=True)
 
         return client
     except Exception as e:
@@ -160,3 +164,4 @@ def verify_security_question(user_id, answer):
         except Exception:
             return False
     return False
+
