@@ -2,22 +2,17 @@ from pymongo import MongoClient
 import streamlit as st
 from datetime import datetime
 import bcrypt
-from urllib.parse import quote_plus  # Import the necessary function
+from urllib.parse import quote_plus
 
 def init_connection():
     try:
-        # **Important:** Fetch the connection string from Streamlit secrets and encode it
+        # **Fetch credentials from Streamlit secrets**
         username = quote_plus(st.secrets["mongo_username"])
         password = quote_plus(st.secrets["mongo_password"])
-        cluster_url = st.secrets["mongo_cluster_url"]
+        cluster_url = quote_plus(st.secrets["mongo_cluster_url"])  # Important: quote cluster URL
         mongo_uri = f"mongodb+srv://{username}:{password}@{cluster_url}/test?retryWrites=true&w=majority&appName=Cluster0"
         
-        # Attempt to connect with explicit SSL configuration.  This is the key change.
-        client = MongoClient(mongo_uri, ssl=True) # Removed ssl_cert_reqs
-        
-        # Force the use of TLS 1.2 (More robust)
-        client.admin.command('ping', tls=True)
-
+        client = MongoClient(mongo_uri, ssl=True, tls=True, tlsAllowInvalidCertificates=False, tlsVersion='TLSv1_2')
         return client
     except Exception as e:
         st.error(f"Could not connect to MongoDB Atlas: {e}")
@@ -164,4 +159,3 @@ def verify_security_question(user_id, answer):
         except Exception:
             return False
     return False
-
