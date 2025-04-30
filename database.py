@@ -9,21 +9,40 @@ import urllib.parse
 
 import certifi
 
+# Import these at the top of your file
+import os
+from dotenv import load_dotenv
+
+# Load environment variables
+load_dotenv()
+
+@st.cache_resource
 def init_connection():
     try:
-        # First try to get from Streamlit secrets
-        if 'mongo' in st.secrets:
-            mongo_uri = st.secrets["mongo"]["uri"]
-        # Otherwise try environment variable
-        else:
-            mongo_uri = os.environ.get("MONGODB_URI", "mongodb://localhost:27017/")
+        # First try Streamlit secrets (for cloud deployment)
+        connection_string = None
+        if hasattr(st, "secrets") and "mongodb" in st.secrets:
+            connection_string = st.secrets["mongodb"]["uri"]
         
-        client = MongoClient(mongo_uri)
+        # Fall back to environment variable (for local development)
+        if not connection_string:
+            connection_string = os.getenv("MONGODB_URI")
+            
+        # Fall back to localhost as last resort
+        if not connection_string:
+            st.warning("No MongoDB connection string found. Falling back to localhost.")
+            connection_string = 'mongodb://localhost:27017/'
+        
+        # Connect to MongoDB Atlas (or local MongoDB)
+        client = MongoClient(connection_string)
+        
+        # Test the connection
+        client.admin.command('ping')
         return client
     except Exception as e:
         st.error(f"Could not connect to MongoDB: {e}")
         return None
-    
+        
 def init_database():
     client = init_connection()
     if client is not None:
