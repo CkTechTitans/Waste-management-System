@@ -2,57 +2,23 @@ from pymongo import MongoClient
 import streamlit as st
 from datetime import datetime
 import bcrypt
-import os
-import ssl
-import urllib.parse
 
-
-import certifi
-
-# Import these at the top of your file
-import os
-from dotenv import load_dotenv
-
-# Load environment variables
-load_dotenv()
-
-@st.cache_resource
 def init_connection():
     try:
-        # First try Streamlit secrets (for cloud deployment)
-        connection_string = None
-        if hasattr(st, "secrets") and "mongodb" in st.secrets:
-            connection_string = st.secrets["mongodb"]["uri"]
-        
-        # Fall back to environment variable (for local development)
-        if not connection_string:
-            connection_string = os.getenv("MONGODB_URI")
-            
-        # Fall back to localhost as last resort
-        if not connection_string:
-            st.warning("No MongoDB connection string found. Falling back to localhost.")
-            connection_string = 'mongodb://localhost:27017/'
-        
-        # Connect to MongoDB Atlas (or local MongoDB)
-        client = MongoClient(connection_string)
-        
-        # Test the connection
-        client.admin.command('ping')
+        # **Important:** Fetch the connection string from Streamlit secrets
+        mongo_uri = st.secrets["mongo_uri"]  
+        client = MongoClient(mongo_uri)
         return client
     except Exception as e:
-        st.error(f"Could not connect to MongoDB: {e}")
+        st.error(f"Could not connect to MongoDB Atlas: {e}")
         return None
-        
+
 def init_database():
     client = init_connection()
     if client is not None:
         return client['waste_exchange']
     return None
 
-# The rest of your functions remain the same
-# get_user, register_user, create_seller_listing, etc.
-# The rest of your functions remain the same
-# get_user, register_user, create_seller_listing, etc.
 def get_user(email):
     db = init_database()
     if db is not None:
@@ -68,7 +34,6 @@ def register_user(username, email, password_hash):
                 "email": email,
                 "password": password_hash,
                 "created_at": datetime.now(),
-                
                 "last_login": None
             })
             return True, "Registration successful"
@@ -189,3 +154,4 @@ def verify_security_question(user_id, answer):
         except Exception:
             return False
     return False
+
