@@ -6,19 +6,28 @@ import os
 import ssl
 import urllib.parse
 
+from pymongo import MongoClient
+import streamlit as st
+from datetime import datetime
+import bcrypt
+import os
+import urllib.parse
+import certifi
+
 def init_connection():
     try:
         # Check for MongoDB URI in Streamlit secrets
         if "mongo" in st.secrets:
             username = st.secrets["mongo"]["username"]
             password = st.secrets["mongo"]["password"]
+            host = st.secrets["mongo"]["host"]
             
             # URL encode username and password
             encoded_username = urllib.parse.quote_plus(username)
             encoded_password = urllib.parse.quote_plus(password)
             
-            # Direct connection to a specific server
-            mongo_uri = f"mongodb://{encoded_username}:{encoded_password}@ac-2g6aibs-shard-00-00.nykmu5z.mongodb.net:27017,ac-2g6aibs-shard-00-01.nykmu5z.mongodb.net:27017,ac-2g6aibs-shard-00-02.nykmu5z.mongodb.net:27017/waste_exchange?replicaSet=atlas-vg1uwk-shard-0&ssl=true&authSource=admin"
+            # Construct a simple URI with minimal parameters
+            mongo_uri = f"mongodb+srv://{encoded_username}:{encoded_password}@{host}/?retryWrites=true&w=majority"
         else:
             # Fall back to environment variable
             mongo_uri = os.environ.get("MONGODB_URI")
@@ -27,13 +36,14 @@ def init_connection():
             st.error("MongoDB connection string not found in secrets or environment variables")
             return None
             
-        # With much more lenient SSL settings
+        # Use only the most compatible options
+        # tlsCAFile is used in newer PyMongo versions instead of ssl_ca_certs
         client = MongoClient(
             mongo_uri,
-            ssl=True,
-            ssl_cert_reqs=ssl.CERT_NONE,
-            tlsAllowInvalidCertificates=True,
-            tlsInsecure=True
+            tlsCAFile=certifi.where(),
+            connectTimeoutMS=30000,
+            socketTimeoutMS=30000,
+            serverSelectionTimeoutMS=30000
         )
         
         # Test connection
@@ -43,7 +53,7 @@ def init_connection():
         return client
     except Exception as e:
         st.error(f"Could not connect to MongoDB: {e}")
-        st.info("Please check your connection string and network settings")
+        st.info(f"Error details: {type(e).__name__}: {str(e)}")
         return None
 def init_database():
     client = init_connection()
