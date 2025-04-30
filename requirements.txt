@@ -6,10 +6,10 @@ pandas
 pymongo
 bson
 bcrypt
-bcrypt>=4.0.1
+
 certifi>=2023.5.7
-streamlit>=1.22.0
-pymongo[srv]>=4.0.0
-certifi>=2023.5.7
-dnspython>=2.3.0
+streamlit
+pymongo
+bcrypt
+python-dotenv
 
