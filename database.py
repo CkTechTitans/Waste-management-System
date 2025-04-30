@@ -7,11 +7,13 @@ from urllib.parse import quote_plus  # Import the necessary function
 def init_connection():
     try:
         # **Important:** Fetch the connection string from Streamlit secrets and encode it
-        username = quote_plus(st.secrets["mongo_username"])  # changed from mongo_uri
-        password = quote_plus(st.secrets["mongo_password"])  # added password from secrets
+        username = quote_plus(st.secrets["mongo_username"])
+        password = quote_plus(st.secrets["mongo_password"])
         cluster_url = st.secrets["mongo_cluster_url"]
         mongo_uri = f"mongodb+srv://{username}:{password}@{cluster_url}/test?retryWrites=true&w=majority&appName=Cluster0"
-        client = MongoClient(mongo_uri)
+        
+        client = MongoClient(mongo_uri, ssl=True, ssl_cert_reqs='CERT_REQUIRED')
+
         return client
     except Exception as e:
         st.error(f"Could not connect to MongoDB Atlas: {e}")
@@ -158,5 +160,3 @@ def verify_security_question(user_id, answer):
         except Exception:
             return False
     return False
-
-
