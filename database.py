@@ -3,16 +3,23 @@ import streamlit as st
 from datetime import datetime
 import bcrypt
 from urllib.parse import quote_plus
+import ssl  # Import the ssl module
 
 def init_connection():
     try:
         # **Fetch credentials from Streamlit secrets**
         username = quote_plus(st.secrets["mongo_username"])
         password = quote_plus(st.secrets["mongo_password"])
-        cluster_url = quote_plus(st.secrets["mongo_cluster_url"])  # Important: quote cluster URL
+        cluster_url = quote_plus(st.secrets["mongo_cluster_url"])
         mongo_uri = f"mongodb+srv://{username}:{password}@{cluster_url}/test?retryWrites=true&w=majority&appName=Cluster0"
         
-        client = MongoClient(mongo_uri, ssl=True, tls=True, tlsAllowInvalidCertificates=False, tlsVersion='TLSv1_2')
+        client = MongoClient(
+            mongo_uri,
+            ssl=True,
+            tls=True,
+            ssl_cert_reqs=ssl.CERT_REQUIRED,  # Use CERT_REQUIRED from ssl
+            ssl_version=ssl.PROTOCOL_TLSv1_2  # Use PROTOCOL_TLSv1_2 from ssl
+        )
         return client
     except Exception as e:
         st.error(f"Could not connect to MongoDB Atlas: {e}")
