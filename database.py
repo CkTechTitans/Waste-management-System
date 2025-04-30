@@ -2,11 +2,15 @@ from pymongo import MongoClient
 import streamlit as st
 from datetime import datetime
 import bcrypt
+from urllib.parse import quote_plus  # Import the necessary function
 
 def init_connection():
     try:
-        # **Important:** Fetch the connection string from Streamlit secrets
-        mongo_uri = st.secrets["mongo_uri"]  
+        # **Important:** Fetch the connection string from Streamlit secrets and encode it
+        username = quote_plus(st.secrets["mongo_username"])  # changed from mongo_uri
+        password = quote_plus(st.secrets["mongo_password"])  # added password from secrets
+        cluster_url = st.secrets["mongo_cluster_url"]
+        mongo_uri = f"mongodb+srv://{username}:{password}@{cluster_url}/test?retryWrites=true&w=majority&appName=Cluster0"
         client = MongoClient(mongo_uri)
         return client
     except Exception as e:
@@ -154,4 +158,5 @@ def verify_security_question(user_id, answer):
         except Exception:
             return False
     return False
+
 
