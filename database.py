@@ -32,7 +32,7 @@ def init_connection():
             
             # Use the connection method that worked: custom SSL context with direct connection
             try:
-                st.write("Connecting with custom SSL context...")
+               
                 
                 # Create a custom SSL context with lower security requirements
                 ctx = ssl.SSLContext(ssl.PROTOCOL_TLS)
