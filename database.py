@@ -19,15 +19,13 @@ def init_connection():
             db_name = st.secrets["mongo"]["db"]
 
             # Debug info
-            st.write(f"Raw username from secrets: {username!r}, type: {type(username)}")
-            st.write(f"Raw password from secrets: {password!r}, type: {type(password)}")
+            
             
             # Encode credentials
             username_encoded = urllib.parse.quote_plus(username)
             password_encoded = urllib.parse.quote_plus(password)
             
-            st.write(f"Encoded username: {username_encoded!r}, type: {type(username_encoded)}")
-            st.write(f"Encoded password: {password_encoded!r}, type: {type(password_encoded)}")
+            
             
             # Extract the base domain from the cluster URL for direct connection attempts
             base_domain = ".".join(cluster_url.split(".")[1:]) if len(cluster_url.split(".")) > 2 else cluster_url
