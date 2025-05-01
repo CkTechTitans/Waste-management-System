@@ -50,7 +50,7 @@ def init_connection():
                 
                 # Test the connection
                 client.admin.command('ping')
-                st.success("Successfully connected to MongoDB Atlas!")
+                
                 return client
                 
             except Exception as e:
