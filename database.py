@@ -1,23 +1,11 @@
-import os
+from pymongo import MongoClient
 import streamlit as st
 from datetime import datetime
 import bcrypt
 
-# Import pymongo separately to handle potential import errors
-try:
-    from pymongo import MongoClient
-    from bson.objectid import ObjectId
-except ImportError:
-    st.error("Could not import pymongo. Please make sure it's installed correctly.")
-    # Define a placeholder to prevent further errors
-    class ObjectId:
-        pass
-
 def init_connection():
     try:
-        # Get the connection string from environment variable, fall back to localhost for development
-        mongo_uri = os.environ.get("MONGODB_URI", "mongodb://localhost:27017/")
-        client = MongoClient(mongo_uri)
+        client = MongoClient('mongodb://localhost:27017/')
         return client
     except Exception as e:
         st.error(f"Could not connect to MongoDB: {e}")
@@ -26,8 +14,7 @@ def init_connection():
 def init_database():
     client = init_connection()
     if client is not None:
-        db_name = os.environ.get("MONGODB_DB_NAME", "waste_exchange")
-        return client[db_name]
+        return client['waste_exchange']
     return None
 
 def get_user(email):
@@ -45,6 +32,7 @@ def register_user(username, email, password_hash):
                 "email": email,
                 "password": password_hash,
                 "created_at": datetime.now(),
+                
                 "last_login": None
             })
             return True, "Registration successful"
@@ -115,6 +103,7 @@ def delete_listing(listing_id, collection_name):
 
 def update_user_password(user_id, new_password_hash):
     """Updates a user's password in the database"""
+    from bson.objectid import ObjectId
     db = init_database()
     if db is not None:
         try:
@@ -133,6 +122,7 @@ def update_user_password(user_id, new_password_hash):
 
 def add_security_question(user_id, question, answer):
     """Adds a security question and answer to user profile"""
+    from bson.objectid import ObjectId
     db = init_database()
     if db is not None:
         try:
@@ -152,6 +142,7 @@ def add_security_question(user_id, question, answer):
 
 def verify_security_question(user_id, answer):
     """Verifies if the provided answer matches the stored security answer"""
+    from bson.objectid import ObjectId
     db = init_database()
     if db is not None:
         try:
