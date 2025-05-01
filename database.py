@@ -1,50 +1,58 @@
 from pymongo import MongoClient
 import streamlit as st
-from datetime import datetime
-import bcrypt
 import urllib.parse
-from bson.objectid import ObjectId  # Import ObjectId
+from bson.objectid import ObjectId
 
 def init_connection():
     """
     Initializes the MongoDB connection using credentials from Streamlit secrets.
-    Handles connection errors and provides informative messages.
+    Handles connection errors and provides detailed debugging.
     """
     try:
-        # Get credentials from Streamlit secrets
+        # 1. Debug: Print the raw values *before* encoding
         if 'mongo' in st.secrets:
             username = st.secrets["mongo"]["username"]
             password = st.secrets["mongo"]["password"]
             cluster_url = st.secrets["mongo"]["cluster"]
             db_name = st.secrets["mongo"]["db"]
 
+            st.write(f"Raw username from secrets: {username!r}")
+            st.write(f"Raw password from secrets: {password!r}")
+
             # Encode the username and password using urllib.parse.quote_plus
             username_encoded = urllib.parse.quote_plus(username)
             password_encoded = urllib.parse.quote_plus(password)
 
+            # 2. Debug: Print the *encoded* values
+            st.write(f"Encoded username: {username_encoded!r}")
+            st.write(f"Encoded password: {password_encoded!r}")
+
             # Create connection string with encoded credentials
             connection_string = f"mongodb+srv://{username_encoded}:{password_encoded}@{cluster_url}/{db_name}?retryWrites=true&w=majority"
 
-            # For troubleshooting - remove in production
-            st.write(f"Connecting to: mongodb+srv://{username_encoded}:****@{cluster_url}/{db_name}")
+            # 3. Debug: Print the connection string that will be used.
+            st.write(f"Connection String: {connection_string}")
 
             # Connect to MongoDB
             client = MongoClient(connection_string)
 
             # Test connection with a ping command
-            client.admin.command('ping')
-            st.success("Connected to MongoDB Atlas successfully!")
-            return client
+            try:
+                client.admin.command('ping')
+                st.success("Connected to MongoDB Atlas successfully!")
+                return client
+            except Exception as ping_err:
+                st.error(f"Ping failed: {ping_err}")
+                return None
+
         else:
             st.error("MongoDB credentials not found in secrets.  Please ensure they are defined in your Streamlit secrets.toml file.")
-            return None  # Explicitly return None for this error case
+            return None
     except Exception as e:
         st.error(f"Could not connect to MongoDB Atlas: {e}")
-
-        # Optional: Show full error trace for debugging (remove in production)
         import traceback
         st.error(traceback.format_exc())
-        return None  # Important: Return None on connection failure
+        return None
 
 def init_database():
     """
@@ -52,19 +60,19 @@ def init_database():
     Handles the case where the client is None (connection failed).
     """
     client = init_connection()
-    if client:  # Only proceed if the client is successfully obtained
+    if client:
         try:
-            db_name = st.secrets["mongo"]["db"] #Use db_name from secrets
+            db_name = st.secrets["mongo"]["db"]
             db = client[db_name]
             return db
         except Exception as e:
             st.error(f"Error accessing database: {e}")
             return None
     else:
-        return None # Explicitly return None if connection failed
+        return None
 
-# All other functions remain unchanged, but I'll add comments for clarity
-
+# ---  The rest of your code (get_user, register_user, etc.) remains the same ---
+# ---  No changes needed below this line in this code block ---
 def get_user(email):
     """Retrieves a user document from the database based on email."""
     db = init_database()
@@ -219,3 +227,4 @@ def verify_security_question(user_id, answer):
         except Exception:
             return False
     return False
+
