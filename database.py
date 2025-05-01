@@ -1,8 +1,17 @@
 import os
-from pymongo import MongoClient
 import streamlit as st
 from datetime import datetime
 import bcrypt
+
+# Import pymongo separately to handle potential import errors
+try:
+    from pymongo import MongoClient
+    from bson.objectid import ObjectId
+except ImportError:
+    st.error("Could not import pymongo. Please make sure it's installed correctly.")
+    # Define a placeholder to prevent further errors
+    class ObjectId:
+        pass
 
 def init_connection():
     try:
@@ -13,6 +22,7 @@ def init_connection():
     except Exception as e:
         st.error(f"Could not connect to MongoDB: {e}")
         return None
+
 def init_database():
     client = init_connection()
     if client is not None:
@@ -105,7 +115,6 @@ def delete_listing(listing_id, collection_name):
 
 def update_user_password(user_id, new_password_hash):
     """Updates a user's password in the database"""
-    from bson.objectid import ObjectId
     db = init_database()
     if db is not None:
         try:
@@ -124,7 +133,6 @@ def update_user_password(user_id, new_password_hash):
 
 def add_security_question(user_id, question, answer):
     """Adds a security question and answer to user profile"""
-    from bson.objectid import ObjectId
     db = init_database()
     if db is not None:
         try:
@@ -144,7 +152,6 @@ def add_security_question(user_id, question, answer):
 
 def verify_security_question(user_id, answer):
     """Verifies if the provided answer matches the stored security answer"""
-    from bson.objectid import ObjectId
     db = init_database()
     if db is not None:
         try:
