@@ -7,31 +7,48 @@ import urllib.parse
 
 def init_connection():
     try:
-        # Use Streamlit secrets
-        username = st.secrets.mongo.username
-        password = st.secrets.mongo.password
-        cluster_url = st.secrets.mongo.cluster
-        db_name = st.secrets.mongo.db
-        
-        # Properly escape username and password according to RFC 3986
-        username = urllib.parse.quote_plus(username)
-        password = urllib.parse.quote_plus(password)
-        
-        # Atlas connection string
-        connection_string = f"mongodb+srv://{username}:{password}@{cluster_url}/{db_name}?retryWrites=true&w=majority"
-        
-        client = MongoClient(connection_string)
-        # Test the connection (optional)
-        client.admin.command('ping')
-        return client
+        # Get credentials from Streamlit secrets
+        if 'mongo' in st.secrets:
+            # Direct string access to avoid any attribute issues
+            username = st.secrets["mongo"]["username"]
+            password = st.secrets["mongo"]["password"]
+            cluster_url = st.secrets["mongo"]["cluster"]
+            db_name = st.secrets["mongo"]["db"]
+            
+            # Encode the username and password
+            username_encoded = urllib.parse.quote_plus(username)
+            password_encoded = urllib.parse.quote_plus(password)
+            
+            # Create connection string with encoded credentials
+            connection_string = f"mongodb+srv://{username_encoded}:{password_encoded}@{cluster_url}/{db_name}?retryWrites=true&w=majority"
+            
+            # For troubleshooting - remove in production
+            st.write(f"Connecting to: mongodb+srv://{username_encoded}:****@{cluster_url}/{db_name}")
+            
+            # Connect to MongoDB
+            client = MongoClient(connection_string)
+            
+            # Test connection with a ping command
+            client.admin.command('ping')
+            st.success("Connected to MongoDB Atlas successfully!")
+            
+            return client
+        else:
+            st.error("MongoDB credentials not found in secrets")
+            return None
     except Exception as e:
         st.error(f"Could not connect to MongoDB Atlas: {e}")
+        
+        # Optional: Show full error trace for debugging (remove in production)
+        import traceback
+        st.error(traceback.format_exc())
+        
         return None
 
 def init_database():
     client = init_connection()
     if client is not None:
-        return client['waste_exchange']
+        return client['waste_exchange']  # Use the db_name from secrets instead if needed
     return None
 
 # All other functions remain unchanged
