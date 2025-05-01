@@ -2,13 +2,25 @@ from pymongo import MongoClient
 import streamlit as st
 from datetime import datetime
 import bcrypt
+import os
 
 def init_connection():
     try:
-        client = MongoClient('mongodb://localhost:27017/')
+        # MongoDB Atlas connection string format
+        # Replace with your actual connection details or use environment variables (recommended)
+        username = st.secrets.mongo.username
+        password = st.secrets.mongo.password
+        cluster_url = st.secrets.mongo.cluster
+        db_name = st.secrets.mongo.db
+        
+        # Atlas connection string
+        connection_string = f"mongodb+srv://{username}:{password}@{cluster_url}/{db_name}?retryWrites=true&w=majority"
+        
+        # For Streamlit Cloud, you'd store these as secrets
+        client = MongoClient(connection_string)
         return client
     except Exception as e:
-        st.error(f"Could not connect to MongoDB: {e}")
+        st.error(f"Could not connect to MongoDB Atlas: {e}")
         return None
 
 def init_database():
@@ -17,6 +29,7 @@ def init_database():
         return client['waste_exchange']
     return None
 
+# All other functions remain unchanged
 def get_user(email):
     db = init_database()
     if db is not None:
@@ -32,7 +45,6 @@ def register_user(username, email, password_hash):
                 "email": email,
                 "password": password_hash,
                 "created_at": datetime.now(),
-                
                 "last_login": None
             })
             return True, "Registration successful"
