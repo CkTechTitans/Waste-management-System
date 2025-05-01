@@ -4,11 +4,7 @@ pillow
 google-generativeai
 pandas
 pymongo
-bson
 bcrypt
-
 certifi>=2023.5.7
-
-pymongo
-bcrypt
 python-dotenv
+dnspython
