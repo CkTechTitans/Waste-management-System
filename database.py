@@ -2,10 +2,27 @@ from pymongo import MongoClient
 import streamlit as st
 from datetime import datetime
 import bcrypt
+import os
+from bson.objectid import ObjectId
 
 def init_connection():
     try:
-        client = MongoClient('mongodb://localhost:27017/')
+        # First try to get connection string from Streamlit secrets
+        if 'mongo' in st.secrets:
+            mongo_uri = st.secrets['mongo']['uri']
+        # Then try environment variables
+        else:
+            mongo_uri = os.getenv('MONGO_URI')
+        
+        # If both fail, show a helpful error
+        if not mongo_uri:
+            st.error("MongoDB connection string not found. Please set it in Streamlit secrets or as MONGO_URI environment variable.")
+            return None
+            
+        # Connect with the URI
+        client = MongoClient(mongo_uri)
+        # Verify connection works
+        client.admin.command('ping')
         return client
     except Exception as e:
         st.error(f"Could not connect to MongoDB: {e}")
@@ -14,7 +31,12 @@ def init_connection():
 def init_database():
     client = init_connection()
     if client is not None:
-        return client['waste_exchange']
+        # Get database name from secrets or use default
+        if 'mongo' in st.secrets and 'database' in st.secrets['mongo']:
+            db_name = st.secrets['mongo']['database']
+        else:
+            db_name = os.getenv('MONGO_DB', 'waste_exchange')
+        return client[db_name]
     return None
 
 def get_user(email):
@@ -32,7 +54,6 @@ def register_user(username, email, password_hash):
                 "email": email,
                 "password": password_hash,
                 "created_at": datetime.now(),
-                
                 "last_login": None
             })
             return True, "Registration successful"
@@ -82,7 +103,7 @@ def update_listing_status(listing_id, collection_name, new_status):
         try:
             collection = db[collection_name]
             collection.update_one(
-                {"_id": listing_id},
+                {"_id": ObjectId(listing_id) if isinstance(listing_id, str) else listing_id},
                 {"$set": {"status": new_status}}
             )
             return True, "Updated successfully"
@@ -95,7 +116,7 @@ def delete_listing(listing_id, collection_name):
     if db is not None:
         try:
             collection = db[collection_name]
-            collection.delete_one({"_id": listing_id})
+            collection.delete_one({"_id": ObjectId(listing_id) if isinstance(listing_id, str) else listing_id})
             return True, "Deleted successfully"
         except Exception as e:
             return False, str(e)
@@ -103,7 +124,6 @@ def delete_listing(listing_id, collection_name):
 
 def update_user_password(user_id, new_password_hash):
     """Updates a user's password in the database"""
-    from bson.objectid import ObjectId
     db = init_database()
     if db is not None:
         try:
@@ -122,7 +142,6 @@ def update_user_password(user_id, new_password_hash):
 
 def add_security_question(user_id, question, answer):
     """Adds a security question and answer to user profile"""
-    from bson.objectid import ObjectId
     db = init_database()
     if db is not None:
         try:
@@ -142,7 +161,6 @@ def add_security_question(user_id, question, answer):
 
 def verify_security_question(user_id, answer):
     """Verifies if the provided answer matches the stored security answer"""
-    from bson.objectid import ObjectId
     db = init_database()
     if db is not None:
         try:
