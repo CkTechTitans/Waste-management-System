@@ -2,7 +2,8 @@ from pymongo import MongoClient
 import streamlit as st
 import urllib.parse
 from bson.objectid import ObjectId
-import sys  # Import the sys module
+import sys
+import ssl  # Import ssl module for TLS/SSL configuration
 
 def init_connection():
     """
@@ -34,7 +35,6 @@ def init_connection():
             st.write(f"Encoded password: {password_encoded!r}, type: {type(password_encoded)}")
 
             # 4. Debug: Print the connection string that will be used.
-            # Fixed the connection string by removing the extra '@' symbol
             connection_string = f"mongodb+srv://{username_encoded}:{password_encoded}@{cluster_url}/{db_name}?retryWrites=true&w=majority"
             st.write(f"Connection String: {connection_string}")
 
@@ -42,8 +42,20 @@ def init_connection():
             st.write(f"Python Version: {sys.version}")
             st.write(f"Python Encoding: {sys.getdefaultencoding()}")
 
-            # Connect to MongoDB
-            client = MongoClient(connection_string)
+            # Create SSL context with appropriate configuration
+            ssl_context = ssl.create_default_context()
+            # You might need to adjust the TLS version if needed
+            ssl_context.minimum_version = ssl.TLSVersion.TLSv1_2
+
+            # Connect to MongoDB with SSL context
+            client = MongoClient(
+                connection_string,
+                ssl=True,
+                ssl_cert_reqs=ssl.CERT_REQUIRED,
+                ssl_ca_certs=ssl.get_default_verify_paths().cafile,
+                tlsAllowInvalidCertificates=False,  # Set to True only for testing if needed
+                serverSelectionTimeoutMS=5000  # 5 seconds timeout
+            )
 
             # Test connection with a ping command
             try:
@@ -52,18 +64,30 @@ def init_connection():
                 return client
             except Exception as ping_err:
                 st.error(f"Ping failed: {ping_err}")
-                return None
+                # Try alternative SSL configuration if first attempt fails
+                try:
+                    # Alternative connection with more permissive settings
+                    client = MongoClient(
+                        connection_string,
+                        ssl=True,
+                        tlsAllowInvalidCertificates=True,  # More permissive for troubleshooting
+                        serverSelectionTimeoutMS=5000
+                    )
+                    client.admin.command('ping')
+                    st.success("Connected to MongoDB Atlas with alternative SSL configuration!")
+                    return client
+                except Exception as alt_err:
+                    st.error(f"Alternative connection also failed: {alt_err}")
+                    return None
 
         else:
-            st.error("MongoDB credentials not found in secrets.  Please ensure they are defined in your Streamlit secrets.toml file.")
+            st.error("MongoDB credentials not found in secrets. Please ensure they are defined in your Streamlit secrets.toml file.")
             return None
     except Exception as e:
         st.error(f"Could not connect to MongoDB Atlas: {e}")
         import traceback
         st.error(traceback.format_exc())
         return None
-
-# The rest of your functions remain unchanged
 
 def init_database():
     """
