@@ -34,6 +34,7 @@ def init_connection():
             st.write(f"Encoded password: {password_encoded!r}, type: {type(password_encoded)}")
 
             # 4. Debug: Print the connection string that will be used.
+            # Fixed the connection string by removing the extra '@' symbol
             connection_string = f"mongodb+srv://{username_encoded}:{password_encoded}@{cluster_url}/{db_name}?retryWrites=true&w=majority"
             st.write(f"Connection String: {connection_string}")
 
@@ -61,6 +62,8 @@ def init_connection():
         import traceback
         st.error(traceback.format_exc())
         return None
+
+# The rest of your functions remain unchanged
 
 def init_database():
     """
