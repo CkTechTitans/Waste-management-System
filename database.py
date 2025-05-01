@@ -3,86 +3,134 @@ import streamlit as st
 import urllib.parse
 from bson.objectid import ObjectId
 import sys
-import ssl  # Import ssl module for TLS/SSL configuration
+import ssl
 
 def init_connection():
     """
     Initializes the MongoDB connection using credentials from Streamlit secrets.
-    Handles connection errors and provides detailed debugging.
+    Tries multiple connection approaches to resolve SSL issues.
     """
     try:
-        # 1. Debug: Print the raw values *before* encoding, with extra checks
         if 'mongo' in st.secrets:
             username = st.secrets["mongo"]["username"]
             password = st.secrets["mongo"]["password"]
             cluster_url = st.secrets["mongo"]["cluster"]
             db_name = st.secrets["mongo"]["db"]
 
+            # Debug info
             st.write(f"Raw username from secrets: {username!r}, type: {type(username)}")
             st.write(f"Raw password from secrets: {password!r}, type: {type(password)}")
-
-            # 2.  Check for pre-encoding (Advanced Debugging)
-            if any(char in username for char in "%@:/" ) or any(char in password for char in "%@:/"):
-                st.error("ERROR: Username or password appears to be ALREADY encoded before quote_plus!")
-                st.stop() # Stop execution to prevent further errors
-
-            # Encode the username and password using urllib.parse.quote_plus
+            
+            # Encode credentials
             username_encoded = urllib.parse.quote_plus(username)
             password_encoded = urllib.parse.quote_plus(password)
-
-            # 3. Debug: Print the *encoded* values
+            
             st.write(f"Encoded username: {username_encoded!r}, type: {type(username_encoded)}")
             st.write(f"Encoded password: {password_encoded!r}, type: {type(password_encoded)}")
-
-            # 4. Debug: Print the connection string that will be used.
-            connection_string = f"mongodb+srv://{username_encoded}:{password_encoded}@{cluster_url}/{db_name}?retryWrites=true&w=majority"
-            st.write(f"Connection String: {connection_string}")
-
-            # 5. Debug:  Check Python Version and Encoding
-            st.write(f"Python Version: {sys.version}")
-            st.write(f"Python Encoding: {sys.getdefaultencoding()}")
-
-            # Create SSL context with appropriate configuration
-            ssl_context = ssl.create_default_context()
-            # You might need to adjust the TLS version if needed
-            ssl_context.minimum_version = ssl.TLSVersion.TLSv1_2
-
-            # Connect to MongoDB with SSL context
-            client = MongoClient(
-                connection_string,
-                ssl=True,
-                ssl_cert_reqs=ssl.CERT_REQUIRED,
-                ssl_ca_certs=ssl.get_default_verify_paths().cafile,
-                tlsAllowInvalidCertificates=False,  # Set to True only for testing if needed
-                serverSelectionTimeoutMS=5000  # 5 seconds timeout
-            )
-
-            # Test connection with a ping command
-            try:
-                client.admin.command('ping')
-                st.success("Connected to MongoDB Atlas successfully!")
-                return client
-            except Exception as ping_err:
-                st.error(f"Ping failed: {ping_err}")
-                # Try alternative SSL configuration if first attempt fails
+            
+            # Extract the base domain from the cluster URL for direct connection attempts
+            # Example: from "cluster0.wb2je5w.mongodb.net" to "wb2je5w.mongodb.net"
+            base_domain = ".".join(cluster_url.split(".")[1:]) if len(cluster_url.split(".")) > 2 else cluster_url
+            
+            # Try different connection methods
+            connection_methods = [
+                # Method 1: Standard SRV connection with minimal options
+                {
+                    "name": "Standard SRV connection",
+                    "uri": f"mongodb+srv://{username_encoded}:{password_encoded}@{cluster_url}/{db_name}?retryWrites=true&w=majority",
+                    "options": {
+                        "serverSelectionTimeoutMS": 5000
+                    }
+                },
+                
+                # Method 2: Standard SRV with TLS options
+                {
+                    "name": "SRV with TLS options",
+                    "uri": f"mongodb+srv://{username_encoded}:{password_encoded}@{cluster_url}/{db_name}?retryWrites=true&w=majority",
+                    "options": {
+                        "tls": True,
+                        "tlsAllowInvalidCertificates": True,
+                        "serverSelectionTimeoutMS": 5000
+                    }
+                },
+                
+                # Method 3: Direct connection to shard 00 (bypassing SRV)
+                {
+                    "name": "Direct connection to shard 00",
+                    "uri": f"mongodb://{username_encoded}:{password_encoded}@ac-e9filvk-shard-00-00.{base_domain}:27017/{db_name}?ssl=true&replicaSet=atlas-4gf2fk-shard-0&authSource=admin",
+                    "options": {
+                        "ssl": True,
+                        "tlsAllowInvalidCertificates": True,
+                        "serverSelectionTimeoutMS": 5000
+                    }
+                },
+                
+                # Method 4: Direct connection with minimal options
+                {
+                    "name": "Direct connection with minimal options",
+                    "uri": f"mongodb://{username_encoded}:{password_encoded}@ac-e9filvk-shard-00-00.{base_domain}:27017,ac-e9filvk-shard-00-01.{base_domain}:27017,ac-e9filvk-shard-00-02.{base_domain}:27017/{db_name}?ssl=true&replicaSet=atlas-4gf2fk-shard-0&authSource=admin",
+                    "options": {
+                        "serverSelectionTimeoutMS": 5000
+                    }
+                }
+            ]
+            
+            # Try each connection method
+            for method in connection_methods:
                 try:
-                    # Alternative connection with more permissive settings
-                    client = MongoClient(
-                        connection_string,
-                        ssl=True,
-                        tlsAllowInvalidCertificates=True,  # More permissive for troubleshooting
-                        serverSelectionTimeoutMS=5000
-                    )
+                    st.write(f"Trying connection method: {method['name']}")
+                    st.write(f"Connection URI: {method['uri']}")
+                    
+                    client = MongoClient(method['uri'], **method['options'])
+                    
+                    # Test the connection
                     client.admin.command('ping')
-                    st.success("Connected to MongoDB Atlas with alternative SSL configuration!")
+                    st.success(f"Successfully connected using {method['name']}!")
                     return client
-                except Exception as alt_err:
-                    st.error(f"Alternative connection also failed: {alt_err}")
-                    return None
-
+                    
+                except Exception as e:
+                    st.error(f"Connection failed with {method['name']}: {str(e)}")
+            
+            # If all methods failed, try one more with direct driver-level SSL context
+            try:
+                st.write("Trying connection with custom SSL context...")
+                
+                # Create a custom SSL context with lower security for troubleshooting
+                ctx = ssl.SSLContext(ssl.PROTOCOL_TLS)
+                ctx.check_hostname = False
+                ctx.verify_mode = ssl.CERT_NONE
+                
+                uri = f"mongodb://{username_encoded}:{password_encoded}@ac-e9filvk-shard-00-00.{base_domain}:27017,ac-e9filvk-shard-00-01.{base_domain}:27017,ac-e9filvk-shard-00-02.{base_domain}:27017/{db_name}?authSource=admin"
+                
+                client = MongoClient(
+                    uri,
+                    ssl=True, 
+                    ssl_cert_reqs=ssl.CERT_NONE,
+                    serverSelectionTimeoutMS=5000
+                )
+                
+                client.admin.command('ping')
+                st.success("Successfully connected with custom SSL context!")
+                return client
+                
+            except Exception as final_e:
+                st.error(f"All connection methods failed. Final attempt error: {str(final_e)}")
+                
+                # Provide troubleshooting guidance
+                st.error("""
+                Troubleshooting advice:
+                1. Check if your IP address is whitelisted in MongoDB Atlas Network Access
+                2. Verify your username and password in the secrets.toml file
+                3. Ensure there are no network restrictions blocking outbound connections to MongoDB Atlas
+                4. Check if your MongoDB Atlas cluster is active and running
+                """)
+                
+                return None
+                
         else:
             st.error("MongoDB credentials not found in secrets. Please ensure they are defined in your Streamlit secrets.toml file.")
             return None
+            
     except Exception as e:
         st.error(f"Could not connect to MongoDB Atlas: {e}")
         import traceback
@@ -92,7 +140,6 @@ def init_connection():
 def init_database():
     """
     Initializes the database connection and returns the database object.
-    Handles the case where the client is None (connection failed).
     """
     client = init_connection()
     if client:
