@@ -2,81 +2,98 @@ from pymongo import MongoClient
 import streamlit as st
 from datetime import datetime
 import bcrypt
-import os
 import urllib.parse
+from bson.objectid import ObjectId  # Import ObjectId
 
 def init_connection():
+    """
+    Initializes the MongoDB connection using credentials from Streamlit secrets.
+    Handles connection errors and provides informative messages.
+    """
     try:
         # Get credentials from Streamlit secrets
         if 'mongo' in st.secrets:
-            # Direct string access to avoid any attribute issues
             username = st.secrets["mongo"]["username"]
             password = st.secrets["mongo"]["password"]
             cluster_url = st.secrets["mongo"]["cluster"]
             db_name = st.secrets["mongo"]["db"]
-            
-            # Encode the username and password
+
+            # Encode the username and password using urllib.parse.quote_plus
             username_encoded = urllib.parse.quote_plus(username)
             password_encoded = urllib.parse.quote_plus(password)
-            
+
             # Create connection string with encoded credentials
             connection_string = f"mongodb+srv://{username_encoded}:{password_encoded}@{cluster_url}/{db_name}?retryWrites=true&w=majority"
-            
+
             # For troubleshooting - remove in production
             st.write(f"Connecting to: mongodb+srv://{username_encoded}:****@{cluster_url}/{db_name}")
-            
+
             # Connect to MongoDB
             client = MongoClient(connection_string)
-            
+
             # Test connection with a ping command
             client.admin.command('ping')
             st.success("Connected to MongoDB Atlas successfully!")
-            
             return client
         else:
-            st.error("MongoDB credentials not found in secrets")
-            return None
+            st.error("MongoDB credentials not found in secrets.  Please ensure they are defined in your Streamlit secrets.toml file.")
+            return None  # Explicitly return None for this error case
     except Exception as e:
         st.error(f"Could not connect to MongoDB Atlas: {e}")
-        
+
         # Optional: Show full error trace for debugging (remove in production)
         import traceback
         st.error(traceback.format_exc())
-        
-        return None
+        return None  # Important: Return None on connection failure
 
 def init_database():
+    """
+    Initializes the database connection and returns the database object.
+    Handles the case where the client is None (connection failed).
+    """
     client = init_connection()
-    if client is not None:
-        return client['waste_exchange']  # Use the db_name from secrets instead if needed
-    return None
+    if client:  # Only proceed if the client is successfully obtained
+        try:
+            db_name = st.secrets["mongo"]["db"] #Use db_name from secrets
+            db = client[db_name]
+            return db
+        except Exception as e:
+            st.error(f"Error accessing database: {e}")
+            return None
+    else:
+        return None # Explicitly return None if connection failed
 
-# All other functions remain unchanged
+# All other functions remain unchanged, but I'll add comments for clarity
+
 def get_user(email):
+    """Retrieves a user document from the database based on email."""
     db = init_database()
-    if db is not None:
+    if db:
         return db.users.find_one({"email": email})
     return None
 
 def register_user(username, email, password_hash):
+    """Registers a new user in the database."""
     db = init_database()
-    if db is not None:
+    if db:
         try:
-            db.users.insert_one({
+            user_data = {
                 "username": username,
                 "email": email,
                 "password": password_hash,
                 "created_at": datetime.now(),
                 "last_login": None
-            })
+            }
+            result = db.users.insert_one(user_data) # capture the result
             return True, "Registration successful"
         except Exception as e:
             return False, str(e)
     return False, "Database connection failed"
 
 def create_seller_listing(listing_data):
+    """Creates a new seller listing in the database."""
     db = init_database()
-    if db is not None:
+    if db:
         try:
             result = db.seller_listings.insert_one(listing_data)
             return True, str(result.inserted_id)
@@ -85,16 +102,18 @@ def create_seller_listing(listing_data):
     return False, "Database connection failed"
 
 def get_seller_listings(query=None):
+    """Retrieves seller listings from the database, optionally filtered by a query."""
     db = init_database()
-    if db is not None:
+    if db:
         if query is None:
             query = {"status": "Active"}
         return list(db.seller_listings.find(query).sort("created_at", -1))
     return []
 
 def create_buyer_request(request_data):
+    """Creates a new buyer request in the database."""
     db = init_database()
-    if db is not None:
+    if db:
         try:
             result = db.buyer_requests.insert_one(request_data)
             return True, str(result.inserted_id)
@@ -103,82 +122,95 @@ def create_buyer_request(request_data):
     return False, "Database connection failed"
 
 def get_buyer_requests(query=None):
+    """Retrieves buyer requests from the database, optionally filtered by a query."""
     db = init_database()
-    if db is not None:
+    if db:
         if query is None:
             query = {"status": "Active"}
         return list(db.buyer_requests.find(query).sort("created_at", -1))
     return []
 
 def update_listing_status(listing_id, collection_name, new_status):
+    """Updates the status of a listing (seller or buyer) in the database."""
     db = init_database()
-    if db is not None:
+    if db:
         try:
             collection = db[collection_name]
-            collection.update_one(
-                {"_id": listing_id},
+            result = collection.update_one( # Capture the result.
+                {"_id": ObjectId(listing_id)},  # Use ObjectId for _id
                 {"$set": {"status": new_status}}
             )
-            return True, "Updated successfully"
+            if result.modified_count > 0:
+                return True, "Updated successfully"
+            else:
+                return False, "Listing not found or status not changed"
         except Exception as e:
             return False, str(e)
     return False, "Database connection failed"
 
 def delete_listing(listing_id, collection_name):
+    """Deletes a listing (seller or buyer) from the database."""
     db = init_database()
-    if db is not None:
+    if db:
         try:
             collection = db[collection_name]
-            collection.delete_one({"_id": listing_id})
-            return True, "Deleted successfully"
+            result = collection.delete_one({"_id": ObjectId(listing_id)}) # Capture result
+            if result.deleted_count > 0:
+                return True, "Deleted successfully"
+            else:
+                return False, "Listing not found"
         except Exception as e:
             return False, str(e)
     return False, "Database connection failed"
 
 def update_user_password(user_id, new_password_hash):
     """Updates a user's password in the database"""
-    from bson.objectid import ObjectId
     db = init_database()
-    if db is not None:
+    if db:
         try:
             # Make sure the password is properly hashed before storing
             if not isinstance(new_password_hash, bytes):
                 new_password_hash = bcrypt.hashpw(new_password_hash.encode('utf-8'), bcrypt.gensalt())
-            
-            db.users.update_one(
+
+            result = db.users.update_one(
                 {"_id": ObjectId(user_id)},
                 {"$set": {"password": new_password_hash}}
             )
-            return True, "Password updated successfully"
+            if result.modified_count > 0:
+                return True, "Password updated successfully"
+            else:
+                return False, "User not found or password not changed"
+
         except Exception as e:
             return False, str(e)
     return False, "Database connection failed"
 
 def add_security_question(user_id, question, answer):
     """Adds a security question and answer to user profile"""
-    from bson.objectid import ObjectId
     db = init_database()
-    if db is not None:
+    if db:
         try:
             # Hash the security answer for security
             answer_hash = bcrypt.hashpw(answer.encode('utf-8'), bcrypt.gensalt())
-            db.users.update_one(
+            result = db.users.update_one(
                 {"_id": ObjectId(user_id)},
                 {"$set": {
                     "security_question": question,
                     "security_answer": answer_hash
                 }}
             )
-            return True, "Security question added"
+            if result.modified_count > 0:
+                return True, "Security question added"
+            else:
+                return False, "User not found or question not added"
         except Exception as e:
             return False, str(e)
     return False, "Database connection failed"
 
 def verify_security_question(user_id, answer):
     """Verifies if the provided answer matches the stored security answer"""
-    from bson.objectid import ObjectId
     db = init_database()
-    if db is not None:
+    if db:
         try:
             user = db.users.find_one({"_id": ObjectId(user_id)})
             if user and 'security_answer' in user:
