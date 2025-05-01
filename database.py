@@ -3,21 +3,26 @@ import streamlit as st
 from datetime import datetime
 import bcrypt
 import os
+import urllib.parse
 
 def init_connection():
     try:
-        # MongoDB Atlas connection string format
-        # Replace with your actual connection details or use environment variables (recommended)
+        # Use Streamlit secrets
         username = st.secrets.mongo.username
         password = st.secrets.mongo.password
         cluster_url = st.secrets.mongo.cluster
         db_name = st.secrets.mongo.db
         
+        # Properly escape username and password according to RFC 3986
+        username = urllib.parse.quote_plus(username)
+        password = urllib.parse.quote_plus(password)
+        
         # Atlas connection string
         connection_string = f"mongodb+srv://{username}:{password}@{cluster_url}/{db_name}?retryWrites=true&w=majority"
         
-        # For Streamlit Cloud, you'd store these as secrets
         client = MongoClient(connection_string)
+        # Test the connection (optional)
+        client.admin.command('ping')
         return client
     except Exception as e:
         st.error(f"Could not connect to MongoDB Atlas: {e}")
