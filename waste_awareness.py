@@ -1,6 +1,3 @@
-import streamlit as st
-import pandas as pd
-from datetime import datetime, timedelta
 import random
 import pymongo
 from pymongo import MongoClient
@@ -10,19 +7,135 @@ from PIL import Image
 from bson.objectid import ObjectId
 import secrets
 import hashlib
+import ssl
+import urllib.parse
+import streamlit as st
+from sshtunnel import SSHTunnelForwarder
 
-# MongoDB connection function (existing)
-def connect_to_mongodb():
+def connect_to_mongodb(connection_type="local"):
+    """
+    Connect to MongoDB with different connection methods.
+    
+    Args:
+        connection_type (str): The type of connection to use. 
+            Options: "local", "atlas_direct", "atlas_ssh"
+    
+    Returns:
+        database: MongoDB database connection or None if failed
+    """
     try:
-        # Replace with your actual MongoDB connection string
-        client = MongoClient("mongodb://localhost:27017/")
-        db = client["waste_management"]
-        # Test the connection by executing a simple command
-        client.admin.command('ping')
-        return db
+        if connection_type == "local":
+            # Connect to local MongoDB instance
+            client = MongoClient("mongodb://localhost:27017/")
+            db = client["waste_management"]
+            # Test the connection
+            client.admin.command('ping')
+            st.success("Connected to local MongoDB successfully")
+            return db
+            
+        elif connection_type == "atlas_direct":
+            # Connect directly to MongoDB Atlas
+            if 'mongo' not in st.secrets:
+                st.error("MongoDB Atlas credentials not found in secrets")
+                return None
+                
+            # Get MongoDB Atlas credentials from secrets
+            username = st.secrets["mongo"]["username"]
+            password = st.secrets["mongo"]["password"]
+            cluster = st.secrets["mongo"]["cluster"]
+            db_name = st.secrets.get("mongo", {}).get("db", "waste_management")
+            
+            # Encode credentials for the URI
+            username_encoded = urllib.parse.quote_plus(username)
+            password_encoded = urllib.parse.quote_plus(password)
+            
+            # Create URI for MongoDB Atlas
+            uri = f"mongodb+srv://{username_encoded}:{password_encoded}@{cluster}/{db_name}?retryWrites=true&w=majority"
+            
+            # Connect with SSL settings appropriate for Atlas
+            client = MongoClient(
+                uri,
+                ssl=True,
+                ssl_cert_reqs=ssl.CERT_REQUIRED,
+                serverSelectionTimeoutMS=5000
+            )
+            
+            # Test the connection
+            client.admin.command('ping')
+            db = client[db_name]
+            st.success("Connected to MongoDB Atlas successfully")
+            return db
+            
+        elif connection_type == "atlas_ssh":
+            # Connect to MongoDB Atlas through SSH tunnel
+            if 'mongo' not in st.secrets or 'ssh' not in st.secrets:
+                st.error("MongoDB Atlas or SSH credentials not found in secrets")
+                return None
+                
+            # Get MongoDB Atlas credentials
+            username = st.secrets["mongo"]["username"]
+            password = st.secrets["mongo"]["password"]
+            cluster = st.secrets["mongo"]["cluster"]
+            db_name = st.secrets.get("mongo", {}).get("db", "waste_management")
+            
+            # Get SSH connection details
+            ssh_host = st.secrets["ssh"]["host"]
+            ssh_username = st.secrets["ssh"]["username"]
+            ssh_password = st.secrets.get("ssh", {}).get("password")
+            ssh_key_path = st.secrets.get("ssh", {}).get("key_path")
+            ssh_port = int(st.secrets.get("ssh", {}).get("port", 22))
+            
+            # Set up the MongoDB host and port
+            mongo_host = f"{cluster}.mongodb.net"
+            mongo_port = 27017
+            
+            # Create SSH tunnel
+            tunnel = SSHTunnelForwarder(
+                (ssh_host, ssh_port),
+                ssh_username=ssh_username,
+                ssh_password=ssh_password if ssh_password else None,
+                ssh_pkey=ssh_key_path if ssh_key_path else None,
+                remote_bind_address=(mongo_host, mongo_port),
+                local_bind_address=('127.0.0.1', 27017)
+            )
+            
+            # Start the tunnel
+            tunnel.start()
+            
+            # Encode credentials for URI
+            username_encoded = urllib.parse.quote_plus(username)
+            password_encoded = urllib.parse.quote_plus(password)
+            
+            # Connect to MongoDB through the tunnel
+            uri = f"mongodb://{username_encoded}:{password_encoded}@127.0.0.1:{tunnel.local_bind_port}/{db_name}?authSource=admin"
+            
+            client = MongoClient(uri)
+            client.admin.command('ping')
+            db = client[db_name]
+            
+            # Store the tunnel in a global variable or attach it to the client/db for later closing
+            st.session_state.ssh_tunnel = tunnel
+            st.success("Connected to MongoDB Atlas via SSH tunnel successfully")
+            
+            return db
+            
+        else:
+            st.error(f"Unknown connection type: {connection_type}")
+            return None
+            
     except Exception as e:
-        st.error(f"Error connecting to MongoDB: {e}")
+        st.error(f"Error connecting to MongoDB: {str(e)}")
+        import traceback
+        st.error(traceback.format_exc())
         return None
+
+def close_mongodb_connection():
+    """Close the MongoDB connection and SSH tunnel if exists"""
+    if hasattr(st.session_state, 'ssh_tunnel'):
+        tunnel = st.session_state.ssh_tunnel
+        if tunnel and tunnel.is_active:
+            tunnel.stop()
+            st.session_state.ssh_tunnel = None
 
 # New admin authentication functions
 def initialize_admin_accounts():
