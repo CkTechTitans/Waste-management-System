@@ -852,7 +852,7 @@ def run_waste_exchange_app():
     
     # Sidebar with improved navigation
     with st.sidebar:
-        st.image("D:/downloads/project/img3.png", width=300)
+        st.image("img3.png", width=300)
         st.title("♻️ Waste Exchange")
         
         st.markdown(f"Welcome, **{st.session_state.username}**!")
