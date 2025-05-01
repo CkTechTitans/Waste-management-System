@@ -5,43 +5,16 @@ from bson.objectid import ObjectId
 import sys  # Import the sys module
 
 def init_connection():
-    """
-    Initializes the MongoDB connection using credentials from Streamlit secrets.
-    Handles connection errors and provides detailed debugging.
-    """
     try:
-        # 1. Debug: Print the raw values *before* encoding, with extra checks
         if 'mongo' in st.secrets:
             username = st.secrets["mongo"]["username"]
             password = st.secrets["mongo"]["password"]
             cluster_url = st.secrets["mongo"]["cluster"]
             db_name = st.secrets["mongo"]["db"]
 
-            st.write(f"Raw username from secrets: {username!r}, type: {type(username)}")
-            st.write(f"Raw password from secrets: {password!r}, type: {type(password)}")
-
-            # 2.  Check for pre-encoding (Advanced Debugging)
-            if any(char in username for char in "%@:/" ) or any(char in password for char in "%@:/"):
-                st.error("ERROR: Username or password appears to be ALREADY encoded before quote_plus!")
-                st.stop() # Stop execution to prevent further errors
-
-            # Encode the username and password using urllib.parse.quote_plus
-            username_encoded = urllib.parse.quote_plus(username)
-            password_encoded = urllib.parse.quote_plus(password)
-
-            # 3. Debug: Print the *encoded* values
-            st.write(f"Encoded username: {username_encoded!r}, type: {type(username_encoded)}")
-            st.write(f"Encoded password: {password_encoded!r}, type: {type(password_encoded)}")
-
-            # 4. Debug: Print the connection string that will be used.
-            connection_string = f"mongodb+srv://{username_encoded}:{password_encoded}@{cluster_url}/{db_name}?retryWrites=true&w=majority"
-            st.write(f"Connection String: {connection_string}")
-
-            # 5. Debug:  Check Python Version and Encoding
-            st.write(f"Python Version: {sys.version}")
-            st.write(f"Python Encoding: {sys.getdefaultencoding()}")
-
-            # Connect to MongoDB
+            #  TEMPORARILY USE LITERAL PASSWORD FOR TESTING
+            connection_string = f"mongodb+srv://{username}:{password}@{cluster_url}/{db_name}?retryWrites=true&w=majority"
+            st.write(f"Connection String: {connection_string}") # Keep this line
             client = MongoClient(connection_string)
 
             # Test connection with a ping command
