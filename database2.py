@@ -77,11 +77,11 @@ def connect_to_mongodb():
             client = pymongo.MongoClient(connection_string)
         
         # Get database name
-        if 'mongo' in st.secrets and "db" in st.secrets["mongo"]:
-            db_name = st.secrets["mongo"]["db"]
+        if 'mongo' in st.secrets:
+            db_name = st.secrets["mongo"].get("db1") or st.secrets["mongo"].get("db") or "waste_management"
         else:
-            # Extract database name from connection string or default to waste_management
             db_name = connection_string.split("/")[-1].split("?")[0] or "waste_management"
+
         
         # Access your database
         db = client[db_name]
