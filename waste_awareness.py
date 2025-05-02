@@ -37,21 +37,7 @@ from database2 import (
     resolve_waste_report,
 )
 
-# Initialize session state variables if they don't exist
-if 'admin_authenticated' not in st.session_state:
-    st.session_state.admin_authenticated = False
-if 'admin_username' not in st.session_state:
-    st.session_state.admin_username = ""
-if 'feedback_message' not in st.session_state:
-    st.session_state.feedback_message = None
-if 'feedback_type' not in st.session_state:
-    st.session_state.feedback_type = None
-if 'user_id' not in st.session_state:
-    st.session_state.user_id = str(uuid.uuid4())
-if 'voted_city' not in st.session_state:
-    st.session_state.voted_city = None
-if 'registered' not in st.session_state:
-    st.session_state.registered = False
+
 
 
 def display_admin_login():
@@ -1066,6 +1052,22 @@ def display_info_section():
 def run_waste_awareness_app():
     """Main function to run the Streamlit application"""
     # Initialize the database
+    # Initialize session state variables if they don't exist
+    if 'admin_authenticated' not in st.session_state:
+        st.session_state.admin_authenticated = False
+    if 'admin_username' not in st.session_state:
+        st.session_state.admin_username = ""
+    if 'feedback_message' not in st.session_state:
+        st.session_state.feedback_message = None
+    if 'feedback_type' not in st.session_state:
+        st.session_state.feedback_type = None
+    if 'user_id' not in st.session_state:
+        st.session_state.user_id = str(uuid.uuid4())
+    if 'voted_city' not in st.session_state:
+        st.session_state.voted_city = None
+    if 'registered' not in st.session_state:
+        st.session_state.registered = False
+        
     try:
         initialize_admin_accounts()
         initialize_cities_data()
