@@ -1,14 +1,13 @@
+# Core dependencies
 streamlit
 requests
 pillow
 google-generativeai
 pandas
 
-
+# MongoDB-related dependencies
+pymongo[srv]==4.6.1  # Updated version, includes its own bson module
+dnspython
 bcrypt
 certifi>=2023.5.7
 python-dotenv
-dnspython
-pymongo[srv]==3.12
-my requirements.txt
-
