@@ -81,26 +81,20 @@ def verify_admin(username, password):
         admin = admin_users.find_one({"username": username})
 
         if not admin:
-            
             return False
 
         if "salt" not in admin:
-            
             return False
 
         # Possible password fields
         hashed_fields = ["hashed_password", "password", "password_hash"]
         salt = admin["salt"]
-        hashed_input = hashlib.sha256((password + admin["salt"]).encode()).hexdigest()
-
-
-       
+        # Fixed: Use salt BEFORE password to match the creation pattern
+        hashed_input = hashlib.sha256((salt + password).encode()).hexdigest()
 
         for field in hashed_fields:
             if field in admin:
-                
                 if hashed_input == admin[field]:
-                    
                     return True
 
         print("Password verification failed")
@@ -109,7 +103,6 @@ def verify_admin(username, password):
     except Exception as e:
         print(f"Error in verify_admin: {str(e)}")
         return False
-
 
 
 def change_admin_password(username, current_password, new_password):
