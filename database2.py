@@ -393,14 +393,14 @@ def initialize_cities_data():
 
     if cities_collection.count_documents({}) == 0:
         cities_data = [
-            {"name": "Bangalore", "waste_index": 85, "votes": 0, "registrations": 0},
-            {"name": "Mumbai", "waste_index": 78, "votes": 0, "registrations": 0},
-            {"name": "Chennai", "waste_index": 72, "votes": 0, "registrations": 0},
-            {"name": "Delhi", "waste_index": 90, "votes": 0, "registrations": 0},
-            {"name": "Kolkata", "waste_index": 82, "votes": 0, "registrations": 0},
-            {"name": "Hyderabad", "waste_index": 75, "votes": 0, "registrations": 0},
-            {"name": "Pune", "waste_index": 70, "votes": 0, "registrations": 0},
-            {"name": "Ahmedabad", "waste_index": 80, "votes": 0, "registrations": 0}
+          {"name": "Whitefield", "waste_index": 85, "votes": 0, "registrations": 0},
+          {"name": "Koramangala", "waste_index": 78, "votes": 0, "registrations": 0},
+          {"name": "Indiranagar", "waste_index": 72, "votes": 0, "registrations": 0},
+          {"name": "Malleshwaram", "waste_index": 90, "votes": 0, "registrations": 0},
+          {"name": "Electronic City", "waste_index": 82, "votes": 0, "registrations": 0},
+          {"name": "Jayanagar", "waste_index": 75, "votes": 0, "registrations": 0},
+          {"name": "HSR Layout", "waste_index": 70, "votes": 0, "registrations": 0},
+          {"name": "Rajajinagar", "waste_index": 80, "votes": 0, "registrations": 0}
         ]
         cities_collection.insert_many(cities_data)
 
