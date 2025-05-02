@@ -17,23 +17,34 @@ def init_connection():
             password = st.secrets["mongo"]["password"]
             cluster_url = st.secrets["mongo"]["cluster"]
             db_name = st.secrets["mongo"]["db"]
+
+            # Debug info
+            
             
             # Encode credentials
             username_encoded = urllib.parse.quote_plus(username)
             password_encoded = urllib.parse.quote_plus(password)
             
+            
+            
             # Extract the base domain from the cluster URL for direct connection attempts
             base_domain = ".".join(cluster_url.split(".")[1:]) if len(cluster_url.split(".")) > 2 else cluster_url
             
+            # Use the connection method that worked: custom SSL context with direct connection
             try:
-                # Create URI
+               
+                
+                # Create a custom SSL context with lower security requirements
+                ctx = ssl.SSLContext(ssl.PROTOCOL_TLS)
+                ctx.check_hostname = False
+                ctx.verify_mode = ssl.CERT_NONE
+                
                 uri = f"mongodb://{username_encoded}:{password_encoded}@ac-e9filvk-shard-00-00.{base_domain}:27017,ac-e9filvk-shard-00-01.{base_domain}:27017,ac-e9filvk-shard-00-02.{base_domain}:27017/{db_name}?authSource=admin"
                 
-                # Create connection using consistent SSL settings
                 client = MongoClient(
                     uri,
                     ssl=True, 
-                    ssl_cert_reqs=ssl.CERT_NONE,  # This is the correct parameter name
+                    ssl_cert_reqs=ssl.CERT_NONE,
                     serverSelectionTimeoutMS=5000
                 )
                 
@@ -65,6 +76,7 @@ def init_connection():
         import traceback
         st.error(traceback.format_exc())
         return None
+
 def init_database():
     """
     Initializes the database connection and returns the database object.
