@@ -7,7 +7,7 @@ pandas
 plotly
 
 # MongoDB-related dependencies
-pymongo[srv]==4.6.1  # Updated version, includes its own bson module
+pymongo[srv]==3.12  # Updated version, includes its own bson module
 dnspython
 bcrypt
 certifi>=2023.5.7
