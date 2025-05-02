@@ -28,7 +28,7 @@ def connect_to_mongodb():
             username = st.secrets["mongo"]["username"]
             password = st.secrets["mongo"]["password"]
             cluster_url = st.secrets["mongo"]["cluster"]
-            db_name = st.secrets["mongo"]["db"]
+            db_name = st.secrets["mongo"]["db1"]
             
             # Encode credentials
             username_encoded = urllib.parse.quote_plus(username)
