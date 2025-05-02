@@ -3,8 +3,6 @@ requests
 pillow
 google-generativeai
 pandas
-
-bson>=0.5.10
 bcrypt
 certifi>=2023.5.7
 python-dotenv
