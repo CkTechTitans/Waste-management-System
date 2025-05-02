@@ -403,19 +403,20 @@ def render_waste_map():
         # Updated coordinates to include Bangalore areas and use Bengaluru as alternative name
         city_coordinates = {
             # Major cities
-             "Koramangala": [12.9352, 77.6245],
-            "HSR Layout": [12.9086, 77.6476],
-            "Indiranagar": [12.9784, 77.6408],
-             "Bengaluru": [12.9716, 77.5946],
-            # Bangalore areas
-            "Whitefield": [12.9698, 77.7500],
-            "Electronic City": [12.8446, 77.6613],
-            "Marathahalli": [12.9592, 77.7010],
-            "Hebbal": [13.0358, 77.5946],
-            "JP Nagar": [12.9077, 77.5751],
-            "Banashankari": [12.9250, 77.5470],
-            "Jayanagar": [12.9300, 77.5833],
-            "rrnagar": [12.9261, 77.5235],
+              "Koramangala": [12.9352, 77.6245],
+        "HSR Layout": [12.9086, 77.6476],
+        "Indiranagar": [12.9784, 77.6408],
+        "Bengaluru": [12.9716, 77.5946],
+        "Whitefield": [12.9698, 77.7500],
+        "Electronic City": [12.8446, 77.6613],
+        "Marathahalli": [12.9592, 77.7010],
+        "Hebbal": [13.0358, 77.5946],
+        "JP Nagar": [12.9077, 77.5751],
+        "Banashankari": [12.9250, 77.5470],
+        "Jayanagar": [12.9300, 77.5833],
+        "RR Nagar": [12.9261, 77.5235],
+        "Malleshwaram": [13.0062, 77.5646],
+        "Rajajinagar": [12.9911, 77.5566]
         }
         
         # Prepare data for map
