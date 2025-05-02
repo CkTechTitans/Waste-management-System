@@ -4,6 +4,7 @@ requests
 pillow
 google-generativeai
 pandas
+plotly
 
 # MongoDB-related dependencies
 pymongo[srv]==4.6.1  # Updated version, includes its own bson module
