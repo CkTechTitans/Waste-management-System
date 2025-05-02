@@ -7,11 +7,10 @@ import base64
 import plotly.express as px
 import uuid
 import json
+import time
 
-# Import the styles module
+# Import other modules
 from styles import main_css, admin_css, public_reports_css
-
-# Import database operations
 from database2 import (
     connect_to_mongodb,
     initialize_admin_accounts,
@@ -37,8 +36,40 @@ from database2 import (
     resolve_waste_report,
 )
 
+# Add caching to expensive database operations
+@st.cache_data(ttl=300)  # Cache for 5 minutes
+def cached_get_cities_data():
+    return get_cities_data()
 
+@st.cache_data(ttl=300)
+def cached_get_waste_reports():
+    return get_waste_reports()
 
+@st.cache_data(ttl=600)  # Cache for 10 minutes
+def cached_get_registration_stats():
+    return get_registration_stats()
+
+@st.cache_data(ttl=600)
+def cached_get_campaign_dates():
+    return get_campaign_dates()
+
+# Image optimization function
+def optimize_image(image, max_size=(800, 800), quality=85):
+    """Optimize image for storage and display"""
+    # Resize if needed
+    if image.width > max_size[0] or image.height > max_size[1]:
+        image.thumbnail(max_size)
+    
+    # Convert RGBA to RGB if needed
+    if image.mode == 'RGBA':
+        background = Image.new('RGB', image.size, (255, 255, 255))
+        background.paste(image, mask=image.split()[3])
+        image = background
+    
+    # Compress image
+    buffered = BytesIO()
+    image.save(buffered, format="JPEG", quality=quality, optimize=True)
+    return base64.b64encode(buffered.getvalue()).decode()
 
 def display_admin_login():
     """Handle admin login form"""
@@ -57,13 +88,12 @@ def display_admin_login():
             else:
                 st.error("Invalid username or password")
 
-
 def display_admin_dashboard():
     """Display admin dashboard with campaign dates and reset option"""
     st.subheader("Admin Dashboard")
     
     try:
-        voting_end, campaign_end = get_campaign_dates()
+        voting_end, campaign_end = cached_get_campaign_dates()
         st.markdown(f"""
         <div class="admin-card">
             <h4>Campaign Dates</h4>
@@ -91,6 +121,8 @@ def display_admin_dashboard():
                     if new_voting_end_dt >= datetime.now() and new_campaign_end_dt > new_voting_end_dt:
                         update_campaign_dates(new_voting_end_dt, new_campaign_end_dt)
                         st.success("Campaign dates updated successfully.")
+                        # Clear the cache for campaign dates
+                        cached_get_campaign_dates.clear()
                         st.rerun()
                     else:
                         st.error("Invalid dates. Voting end must be in the future, and campaign end must be after voting end.")
@@ -106,13 +138,18 @@ def display_admin_dashboard():
         """, unsafe_allow_html=True)
 
     if st.button("Reset Campaign (Votes & Registrations)"):
-        try:
-            reset_campaign()
-            st.success("Campaign data reset successfully.")
-            st.rerun()
-        except Exception as e:
-            st.error(f"Error resetting campaign: {e}")
-
+        confirm = st.checkbox("I confirm I want to reset all campaign data")
+        if confirm and st.button("Confirm Reset"):
+            try:
+                reset_campaign()
+                # Clear all cached data
+                cached_get_cities_data.clear()
+                cached_get_waste_reports.clear()
+                cached_get_registration_stats.clear()
+                st.success("Campaign data reset successfully.")
+                st.rerun()
+            except Exception as e:
+                st.error(f"Error resetting campaign: {e}")
 
 def display_manage_cities():
     """Display interface for adding, updating, and deleting cities"""
@@ -126,6 +163,7 @@ def display_manage_cities():
             try:
                 success, message = add_new_city(new_city_name)
                 if success:
+                    cached_get_cities_data.clear()  # Clear the cache
                     st.success(message)
                 else:
                     st.error(message)
@@ -136,7 +174,7 @@ def display_manage_cities():
     st.markdown("<hr>", unsafe_allow_html=True)
 
     try:
-        cities_data = get_cities_data()
+        cities_data = cached_get_cities_data()
         if cities_data and len(cities_data) > 0:
             st.subheader("Current Cities")
             cities_df = pd.DataFrame(cities_data)
@@ -151,6 +189,7 @@ def display_manage_cities():
                 if update_submitted:
                     success, message = update_city_waste_index(city_to_update, new_waste_index)
                     if success:
+                        cached_get_cities_data.clear()  # Clear the cache
                         st.success(message)
                     else:
                         st.error(message)
@@ -161,68 +200,75 @@ def display_manage_cities():
                 city_to_delete = st.selectbox("Select City to Delete", [city["name"] for city in cities_data])
                 delete_submitted = st.form_submit_button("Delete City")
                 if delete_submitted:
-                    success, message = delete_city(city_to_delete)
-                    if success:
-                        st.success(message)
-                    else:
-                        st.error(message)
-                    st.rerun()
+                    confirm = st.checkbox("I confirm I want to delete this city")
+                    if confirm and st.button("Confirm Delete"):
+                        success, message = delete_city(city_to_delete)
+                        if success:
+                            cached_get_cities_data.clear()  # Clear the cache
+                            st.success(message)
+                        else:
+                            st.error(message)
+                        st.rerun()
         else:
             st.info("No cities available.")
     except Exception as e:
         st.error(f"Error retrieving city data: {e}")
-
 
 def display_registration_stats():
     """Display registration statistics with visualizations"""
     st.subheader("Registration Statistics")
     
     try:
-        stats = get_registration_stats()
+        stats = cached_get_registration_stats()
         if stats and stats.get('total', 0) > 0:
             st.markdown(f"<h4>Total Registrations: {stats['total']}</h4>", unsafe_allow_html=True)
 
+            # Create DataFrames outside the plotting section
             if stats.get('by_city', []):
                 df_by_city = pd.DataFrame(stats['by_city']).rename(columns={"_id": "City", "count": "Registrations"})
                 st.subheader("Registrations by City")
                 st.dataframe(df_by_city)
+                
+                # Create simple bar chart for better performance
                 fig_city = px.bar(df_by_city, x="City", y="Registrations", title="Registrations per City")
-                st.plotly_chart(fig_city)
+                fig_city.update_layout(height=400)  # Fixed height
+                st.plotly_chart(fig_city, use_container_width=True)
 
             if stats.get('by_time_slot', []):
                 df_by_time_slot = pd.DataFrame(stats['by_time_slot']).rename(columns={"_id": "Time Slot", "count": "Registrations"})
                 st.subheader("Registrations by Time Slot")
                 st.dataframe(df_by_time_slot)
+                
+                # Create simple pie chart
                 fig_time_slot = px.pie(df_by_time_slot, names="Time Slot", values="Registrations", title="Registrations per Time Slot")
-                st.plotly_chart(fig_time_slot)
+                fig_time_slot.update_layout(height=400)  # Fixed height
+                st.plotly_chart(fig_time_slot, use_container_width=True)
 
-            # Download Raw Data
-            try:
-                registrations_data = connect_to_mongodb()["registrations"].find()
-                registrations_df = pd.DataFrame(list(registrations_data))
-                if not registrations_df.empty:
-                    registrations_df = registrations_df.drop(columns=['_id', 'user_id', 'timestamp'], errors='ignore')
-                    csv = registrations_df.to_csv(index=False).encode('utf-8')
-                    st.download_button(
-                        label="Download Raw Registrations Data (CSV)",
-                        data=csv,
-                        file_name="registrations.csv",
-                        mime="text/csv",
-                    )
-            except Exception as e:
-                st.error(f"Error preparing download data: {e}")
+            # Download Raw Data - generated on demand
+            if st.button("Prepare Registration Data for Download"):
+                with st.spinner("Preparing download..."):
+                    registrations_data = connect_to_mongodb()["registrations"].find()
+                    registrations_df = pd.DataFrame(list(registrations_data))
+                    if not registrations_df.empty:
+                        registrations_df = registrations_df.drop(columns=['_id', 'user_id', 'timestamp'], errors='ignore')
+                        csv = registrations_df.to_csv(index=False).encode('utf-8')
+                        st.download_button(
+                            label="Download Raw Registrations Data (CSV)",
+                            data=csv,
+                            file_name="registrations.csv",
+                            mime="text/csv",
+                        )
         else:
             st.info("No registration data available yet.")
     except Exception as e:
         st.error(f"Error retrieving registration statistics: {e}")
-
 
 def display_waste_reports_management():
     """Display interface for managing waste reports"""
     st.subheader("Waste Reports Management")
     
     try:
-        reports = get_waste_reports()
+        reports = cached_get_waste_reports()
         if not reports or len(reports) == 0:
             st.info("No waste reports submitted yet.")
             return
@@ -254,10 +300,24 @@ def display_waste_reports_management():
         if filter_severity != "All":
             filtered_reports = [r for r in filtered_reports if r.get("severity", 3) == filter_severity]
 
-        st.markdown(f"**{len(filtered_reports)}** reports found.")
+        # Pagination for reports to improve performance
+        reports_per_page = 10
+        total_pages = (len(filtered_reports) + reports_per_page - 1) // reports_per_page
+        
+        if total_pages > 1:
+            page = st.number_input("Page", min_value=1, max_value=total_pages, value=1)
+        else:
+            page = 1
+            
+        start_idx = (page - 1) * reports_per_page
+        end_idx = min(start_idx + reports_per_page, len(filtered_reports))
+        
+        paginated_reports = filtered_reports[start_idx:end_idx]
+        
+        st.markdown(f"**Showing {start_idx+1}-{end_idx} of {len(filtered_reports)}** reports found.")
 
         # Display reports
-        for report in filtered_reports:
+        for report in paginated_reports:
             with st.container():
                 st.markdown(f"<h4>{report['title']}</h4>", unsafe_allow_html=True)
                 col1, col2 = st.columns([3, 1])
@@ -268,45 +328,53 @@ def display_waste_reports_management():
                     short_description = report['description'][:100] + "..." if len(report['description']) > 100 else report['description']
                     st.markdown(short_description)
                     
-                    # Display image if available
+                    # Display image only if user clicks to view it (to save resources)
                     if 'image' in report and report['image']:
-                        try:
-                            image_data = base64.b64decode(report['image'])
-                            image = Image.open(BytesIO(image_data))
-                            st.image(image, width=200)
-                        except Exception as e:
-                            st.error(f"Error displaying image: {e}")
+                        if st.button("View Image", key=f"view_img_{report['_id']}"):
+                            try:
+                                image_data = base64.b64decode(report['image'])
+                                image = Image.open(BytesIO(image_data))
+                                st.image(image, width=200)
+                            except Exception as e:
+                                st.error(f"Error displaying image: {e}")
                 
                 with col2:
                     report_id = str(report['_id'])
                     st.markdown("<div class='report-actions'>", unsafe_allow_html=True)
                     
-                    # BBMP Tag button
-                    if st.button(f"{'Untag' if report.get('tag_bbmp', False) else 'Tag'} BBMP", key=f"bbmp_{report_id}"):
-                        success, message = tag_bbmp_waste_report(report_id, not report.get('tag_bbmp', False))
-                        if success:
-                            st.success(message)
-                            st.rerun()
-                        else:
-                            st.error(message)
-                    
-                    # Resolve button
-                    if st.button(f"{'Unresolve' if report.get('resolved', False) else 'Resolve'}", key=f"resolve_{report_id}"):
-                        success, message = resolve_waste_report(report_id, not report.get('resolved', False))
-                        if success:
-                            st.success(message)
-                            st.rerun()
-                        else:
-                            st.error(message)
-                    
-                    # Delete button
-                    if st.button("Delete", key=f"delete_{report_id}"):
-                        success, message = delete_waste_report(report_id)
-                        if success:
-                            st.success(message)
-                            st.rerun()
-                        else:
-                            st.error(message)
+                    # Combine actions in one expandable section
+                    with st.expander("Actions"):
+                        # BBMP Tag button
+                        if st.button(f"{'Untag' if report.get('tag_bbmp', False) else 'Tag'} BBMP", key=f"bbmp_{report_id}"):
+                            success, message = tag_bbmp_waste_report(report_id, not report.get('tag_bbmp', False))
+                            if success:
+                                cached_get_waste_reports.clear()  # Clear the cache
+                                st.success(message)
+                                st.rerun()
+                            else:
+                                st.error(message)
+                        
+                        # Resolve button
+                        if st.button(f"{'Unresolve' if report.get('resolved', False) else 'Resolve'}", key=f"resolve_{report_id}"):
+                            success, message = resolve_waste_report(report_id, not report.get('resolved', False))
+                            if success:
+                                cached_get_waste_reports.clear()  # Clear the cache
+                                st.success(message)
+                                st.rerun()
+                            else:
+                                st.error(message)
+                        
+                        # Delete button
+                        if st.button("Delete", key=f"delete_{report_id}"):
+                            confirm = st.checkbox("Confirm delete", key=f"confirm_del_{report_id}")
+                            if confirm and st.button("Yes, Delete", key=f"yes_del_{report_id}"):
+                                success, message = delete_waste_report(report_id)
+                                if success:
+                                    cached_get_waste_reports.clear()  # Clear the cache
+                                    st.success(message)
+                                    st.rerun()
+                                else:
+                                    st.error(message)
                     
                     st.markdown("</div>", unsafe_allow_html=True)
                 
@@ -321,7 +389,6 @@ def display_waste_reports_management():
                 st.markdown("<hr>", unsafe_allow_html=True)
     except Exception as e:
         st.error(f"Error in waste reports management: {e}")
-
 
 def handle_password_change():
     """Handle admin password change form"""
@@ -344,7 +411,6 @@ def handle_password_change():
                     st.success(message)
                 else:
                     st.error(message)
-
 
 def admin_section():
     """Admin section with authentication and management tools"""
@@ -391,19 +457,13 @@ def admin_section():
         with admin_tabs[4]:
             handle_password_change()
 
-
-def render_waste_map():
-    """Render a waste severity map using plotly"""
-    try:
-        cities_data = get_cities_data()
-        if not cities_data:
-            st.info("No cities data available to display on the map.")
-            return
-            
-        # Updated coordinates to include Bangalore areas and use Bengaluru as alternative name
-        city_coordinates = {
-            # Major cities
-              "Koramangala": [12.9352, 77.6245],
+# Use a caching decorator for map generation
+@st.cache_data(ttl=300)
+def generate_waste_map(cities_data):
+    """Generate the waste severity map"""
+    # Updated coordinates to include Bangalore areas
+    city_coordinates = {
+        "Koramangala": [12.9352, 77.6245],
         "HSR Layout": [12.9086, 77.6476],
         "Indiranagar": [12.9784, 77.6408],
         "Bengaluru": [12.9716, 77.5946],
@@ -417,70 +477,108 @@ def render_waste_map():
         "RR Nagar": [12.9261, 77.5235],
         "Malleshwaram": [13.0062, 77.5646],
         "Rajajinagar": [12.9911, 77.5566]
-        }
+    }
+    
+    # Prepare data for map
+    map_data = []
+    missing_cities = []
+    
+    for city in cities_data:
+        city_name = city["name"]
+        if city_name in city_coordinates:
+            map_data.append({
+                "city": city_name,
+                "waste_index": city["waste_index"],
+                "lat": city_coordinates[city_name][0],
+                "lon": city_coordinates[city_name][1],
+                "votes": city["votes"],
+                "registrations": city["registrations"]
+            })
+        else:
+            missing_cities.append(city_name)
         
-        # Prepare data for map
-        map_data = []
-        missing_cities = []
-        
-        for city in cities_data:
-            city_name = city["name"]
-            if city_name in city_coordinates:
-                map_data.append({
-                    "city": city_name,
-                    "waste_index": city["waste_index"],
-                    "lat": city_coordinates[city_name][0],
-                    "lon": city_coordinates[city_name][1],
-                    "votes": city["votes"],
-                    "registrations": city["registrations"]
-                })
-            else:
-                missing_cities.append(city_name)
-            
-        if not map_data:
-            st.info("No geographical data available for the cities.")
+    df_map = pd.DataFrame(map_data)
+    
+    # Create map
+    fig = px.scatter_mapbox(
+        df_map,
+        lat="lat",
+        lon="lon",
+        color="waste_index",
+        size="votes",
+        hover_name="city",
+        hover_data=["waste_index", "votes", "registrations"],
+        color_continuous_scale=px.colors.sequential.Plasma,
+        size_max=15,
+        zoom=10,
+        center={"lat": 12.9716, "lon": 77.5946},
+        title="Waste Severity Map"
+    )
+    
+    fig.update_layout(
+        mapbox_style="open-street-map",
+        margin={"r": 0, "t": 40, "l": 0, "b": 0},
+        coloraxis_colorbar=dict(
+            title="Waste Index",
+            tickvals=[0, 25, 50, 75, 100],
+            ticktext=["Very Low", "Low", "Medium", "High", "Very High"]
+        )
+    )
+    
+    # Ensure minimum marker size for visibility when votes are 0
+    for trace in fig.data:
+        trace.marker.size = [max(5, s) for s in trace.marker.size]
+    
+    return fig, missing_cities
+
+def render_waste_map():
+    """Render a waste severity map using plotly"""
+    try:
+        cities_data = cached_get_cities_data()
+        if not cities_data:
+            st.info("No cities data available to display on the map.")
             return
-            
+        
+        # Use the cached map generation function
+        fig, missing_cities = generate_waste_map(cities_data)
+        
         # Show which cities were missing coordinates, if any
         if missing_cities:
             st.warning(f"Missing coordinates for: {', '.join(missing_cities)}")
-            
-        df_map = pd.DataFrame(map_data)
-        
-        # Create map
-        fig = px.scatter_mapbox(
-            df_map,
-            lat="lat",
-            lon="lon",
-            color="waste_index",
-            size="votes",  # Consider a minimum size for visibility when votes are 0
-            hover_name="city",
-            hover_data=["waste_index", "votes", "registrations"],
-            color_continuous_scale=px.colors.sequential.Plasma,
-            size_max=15,
-            zoom=10,  # Increased zoom level to better see Bangalore areas
-            center={"lat": 12.9716, "lon": 77.5946},  # Center on Bangalore
-            title="Waste Severity Map"
-        )
-        
-        fig.update_layout(
-            mapbox_style="open-street-map",
-            margin={"r": 0, "t": 40, "l": 0, "b": 0},
-            coloraxis_colorbar=dict(
-                title="Waste Index",
-                tickvals=[0, 25, 50, 75, 100],
-                ticktext=["Very Low", "Low", "Medium", "High", "Very High"]
-            )
-        )
-        
-        # Ensure minimum marker size for visibility when votes are 0
-        for trace in fig.data:
-            trace.marker.size = [max(5, s) for s in trace.marker.size]
         
         st.plotly_chart(fig, use_container_width=True)
     except Exception as e:
         st.error(f"Error rendering waste map: {e}")
-        st.exception(e)  # Show full traceback for debugging
+
+@st.cache_data(ttl=300)
+def get_filtered_reports(reports, filter_city, filter_status, sort_by):
+    """Filter and sort reports (cached for better performance)"""
+    # Apply filters
+    filtered_reports = reports
+    
+    if filter_city != "All Cities":
+        filtered_reports = [r for r in filtered_reports if r["city"] == filter_city]
+
+    if filter_status != "All":
+        if filter_status == "Pending":
+            filtered_reports = [r for r in filtered_reports if not r.get("tag_bbmp", False) and not r.get("resolved", False)]
+        elif filter_status == "Tagged for BBMP":
+            filtered_reports = [r for r in filtered_reports if r.get("tag_bbmp", False)]
+        elif filter_status == "Resolved":
+            filtered_reports = [r for r in filtered_reports if r.get("resolved", False)]
+
+    # Apply sorting
+    if sort_by == "Newest First":
+        filtered_reports = sorted(filtered_reports, key=lambda x: x.get('created_at', datetime.now()), reverse=True)
+    elif sort_by == "Oldest First":
+        filtered_reports = sorted(filtered_reports, key=lambda x: x.get('created_at', datetime.now()))
+    elif sort_by == "Most Upvotes":
+        filtered_reports = sorted(filtered_reports, key=lambda x: x.get('upvotes', 0), reverse=True)
+    elif sort_by == "Severity (High to Low)":
+        filtered_reports = sorted(filtered_reports, key=lambda x: x.get('severity', 0), reverse=True)
+        
+    return filtered_reports
+
 
 import streamlit as st
 import base64
