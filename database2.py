@@ -7,12 +7,71 @@ from bson.objectid import ObjectId
 def connect_to_mongodb():
     """Connects to the MongoDB database."""
     try:
-        client = pymongo.MongoClient("mongodb://localhost:27017/")
-        db = client["waste_management"]
-        return db
-    except pymongo.errors.ConnectionFailure as e:
-        print(f"Could not connect to MongoDB: {e}")
+        if 'mongo' in st.secrets:
+            username = st.secrets["mongo"]["username"]
+            password = st.secrets["mongo"]["password"]
+            cluster_url = st.secrets["mongo"]["cluster"]
+            db_name = st.secrets["mongo"]["db"]
+
+            # Debug info
+            
+            
+            # Encode credentials
+            username_encoded = urllib.parse.quote_plus(username)
+            password_encoded = urllib.parse.quote_plus(password)
+            
+            
+            
+            # Extract the base domain from the cluster URL for direct connection attempts
+            base_domain = ".".join(cluster_url.split(".")[1:]) if len(cluster_url.split(".")) > 2 else cluster_url
+            
+            # Use the connection method that worked: custom SSL context with direct connection
+            try:
+               
+                
+                # Create a custom SSL context with lower security requirements
+                ctx = ssl.SSLContext(ssl.PROTOCOL_TLS)
+                ctx.check_hostname = False
+                ctx.verify_mode = ssl.CERT_NONE
+                
+                uri = f"mongodb://{username_encoded}:{password_encoded}@ac-e9filvk-shard-00-00.{base_domain}:27017,ac-e9filvk-shard-00-01.{base_domain}:27017,ac-e9filvk-shard-00-02.{base_domain}:27017/{db_name}?authSource=admin"
+                
+                client = MongoClient(
+                    uri,
+                    ssl=True, 
+                    ssl_cert_reqs=ssl.CERT_NONE,
+                    serverSelectionTimeoutMS=5000
+                )
+                
+                # Test the connection
+                client.admin.command('ping')
+                
+                return client
+                
+            except Exception as e:
+                st.error(f"Connection failed: {str(e)}")
+                
+                # Provide troubleshooting guidance
+                st.error("""
+                Troubleshooting advice:
+                1. Check if your IP address is whitelisted in MongoDB Atlas Network Access
+                2. Verify your username and password in the secrets.toml file
+                3. Ensure there are no network restrictions blocking outbound connections to MongoDB Atlas
+                4. Check if your MongoDB Atlas cluster is active and running
+                """)
+                
+                return None
+                
+        else:
+            st.error("MongoDB credentials not found in secrets. Please ensure they are defined in your Streamlit secrets.toml file.")
+            return None
+            
+    except Exception as e:
+        st.error(f"Could not connect to MongoDB Atlas: {e}")
+        import traceback
+        st.error(traceback.format_exc())
         return None
+
 
 def initialize_admin_accounts():
     """Initializes the default admin account if none exist."""
