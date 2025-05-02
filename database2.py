@@ -1,8 +1,4 @@
-import pymongo
-from datetime import datetime, timedelta
-import secrets
-import hashlib
-from bson.objectid import ObjectId
+
 
 import pymongo
 from datetime import datetime, timedelta
@@ -15,103 +11,41 @@ import ssl
 import streamlit as st
 
 def connect_to_mongodb():
-    """Connects to the MongoDB Atlas database.
-    
-    Handles both environment variable and Streamlit secrets configuration.
-    """
+    """Connects to the MongoDB Atlas database using Streamlit secrets or environment variable."""
     try:
-        # First try to get connection info from environment variables
         connection_string = os.environ.get("MONGODB_URI")
-        
-        # If environment variable not found, try Streamlit secrets
+
         if not connection_string and 'mongo' in st.secrets:
             username = st.secrets["mongo"]["username"]
             password = st.secrets["mongo"]["password"]
             cluster_url = st.secrets["mongo"]["cluster"]
-            db_name = st.secrets["mongo"]["db1"]
-            
-            # Encode credentials
-            username_encoded = urllib.parse.quote_plus(username)
-            password_encoded = urllib.parse.quote_plus(password)
-            
-            # Extract base domain for direct connection
-            base_domain = ".".join(cluster_url.split(".")[1:]) if len(cluster_url.split(".")) > 2 else cluster_url
-            
-            # Create connection URI for replica set connection
-            connection_string = f"mongodb://{username_encoded}:{password_encoded}@ac-e9filvk-shard-00-00.{base_domain}:27017,ac-e9filvk-shard-00-01.{base_domain}:27017,ac-e9filvk-shard-00-02.{base_domain}:27017/{db_name}?authSource=admin"
-            
-            # Create a client with custom SSL settings
-            client = pymongo.MongoClient(
-                connection_string,
-                ssl=True,
-                ssl_cert_reqs=ssl.CERT_NONE,
-                serverSelectionTimeoutMS=5000
-            )
-        
-        # If no connection string from either source, try the standard format from user input
-        elif not connection_string:
-            print("MongoDB Atlas connection credentials not found.")
-            print("Please provide your MongoDB Atlas connection details:")
-            
-            username = input("Username: ")
-            password = input("Password: ")
-            cluster_url = input("Cluster URL (example: cluster0.abc123.mongodb.net): ")
-            db_name = input("Database name: ")
-            
-            # Encode credentials
-            username_encoded = urllib.parse.quote_plus(username)
-            password_encoded = urllib.parse.quote_plus(password)
-            
-            # Create connection URI - standard MongoDB Atlas format
-            connection_string = f"mongodb+srv://{username_encoded}:{password_encoded}@{cluster_url}/{db_name}?retryWrites=true&w=majority"
-            
-            # Store it for future use
-            os.environ["MONGODB_URI"] = connection_string
-            
-            # Create a standard client
-            client = pymongo.MongoClient(connection_string)
-        
-        # If we have a connection string from environment variable
-        else:
-            # Create a standard client
-            client = pymongo.MongoClient(connection_string)
-        
-        # Get database name
-        if 'mongo' in st.secrets:
             db_name = st.secrets["mongo"].get("db1") or st.secrets["mongo"].get("db") or "waste_management"
+
+            username_encoded = urllib.parse.quote_plus(username)
+            password_encoded = urllib.parse.quote_plus(password)
+
+            connection_string = f"mongodb+srv://{username_encoded}:{password_encoded}@{cluster_url}/{db_name}?retryWrites=true&w=majority"
+            client = pymongo.MongoClient(connection_string)
+
+        elif not connection_string:
+            st.error("MongoDB connection string not found in environment or Streamlit secrets.")
+            return None
         else:
+            client = pymongo.MongoClient(connection_string)
             db_name = connection_string.split("/")[-1].split("?")[0] or "waste_management"
 
-        
-        # Access your database
-        db = client[db_name]
-        
-        # Verify the connection works
         client.admin.command('ping')
-        print("Successfully connected to MongoDB Atlas!")
-        
+        db = client[db_name]
+        print("✅ Successfully connected to MongoDB Atlas")
         return db
-    
+
     except pymongo.errors.ConnectionFailure as e:
-        print(f"Could not connect to MongoDB Atlas: {e}")
-        if 'streamlit' in sys.modules:
-            st.error(f"Could not connect to MongoDB Atlas: {e}")
-            st.error("""
-            Troubleshooting advice:
-            1. Check if your IP address is whitelisted in MongoDB Atlas Network Access
-            2. Verify your username and password
-            3. Ensure there are no network restrictions blocking outbound connections to MongoDB Atlas
-            4. Check if your MongoDB Atlas cluster is active and running
-            """)
+        st.error(f"❌ Could not connect to MongoDB Atlas: {e}")
         return None
-    
     except Exception as e:
-        print(f"Error connecting to MongoDB Atlas: {e}")
-        if 'streamlit' in sys.modules:
-            st.error(f"Error connecting to MongoDB Atlas: {e}")
-            import traceback
-            st.error(traceback.format_exc())
+        st.error(f"❌ General error connecting to MongoDB: {e}")
         return None
+
 
 # The rest of your functions remain the same, just replace the original connect_to_mongodb function
 # with this improved version that works with MongoDB Atlas
